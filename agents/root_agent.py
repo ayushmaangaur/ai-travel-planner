@@ -2,6 +2,7 @@ from services.llm_service import LLMService
 from prompts.system_prompts import ROOT_AGENT_PROMPT
 from utils.validator import TravelRequestValidator
 from models.trip import TravelRequest
+from models.session import ConversationSession
 
 
 class RootTravelAgent:
@@ -9,6 +10,8 @@ class RootTravelAgent:
     def __init__(self):
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
+
+        self.session = ConversationSession()
 
     def build_prompt(self, user_request: str) -> str:
 
@@ -39,7 +42,11 @@ User Request:
 
         prompt = self.build_prompt(user_request)
 
-        request = self.llm.parse_travel_request(prompt)
+        new_request = self.llm.parse_travel_request(prompt)
+
+        self.session.update_request(new_request)
+
+        request = self.session.request
 
         missing_fields = TravelRequestValidator.validate(request)
 
