@@ -2,8 +2,13 @@ from agents.root_agent import RootTravelAgent
 
 agent = RootTravelAgent()
 
-request = agent.plan_trip(
-    input("You: ")
-)
+while True:
+    user = input("\nYou: ")
 
-print(request)
+    if user.lower() == "exit":
+        break
+
+    response = agent.plan_trip(user)
+
+    print("\nAgent:")
+    print(response)

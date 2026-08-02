@@ -1,9 +1,12 @@
 from google import genai
+import json
 
 from config.settings import GEMINI_API_KEY, MODEL_NAME
+from models.trip import TravelRequest
 
 
 class LLMService:
+
     def __init__(self):
         self.client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -12,4 +15,19 @@ class LLMService:
             model=MODEL_NAME,
             contents=prompt,
         )
+
         return response.text
+
+    def parse_travel_request(self, prompt: str) -> TravelRequest:
+
+        response = self.generate(prompt)
+
+        data = json.loads(response)
+
+        return TravelRequest(
+            destination=data.get("destination"),
+            days=data.get("days"),
+            budget=data.get("budget"),
+            travelers=data.get("travelers"),
+            preference=data.get("preference"),
+        )

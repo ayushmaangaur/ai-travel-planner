@@ -1,9 +1,8 @@
 from services.llm_service import LLMService
 from prompts.system_prompts import ROOT_AGENT_PROMPT
-
-import json
-
+from utils.validator import TravelRequestValidator
 from models.trip import TravelRequest
+
 
 class RootTravelAgent:
 
@@ -11,7 +10,7 @@ class RootTravelAgent:
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
 
-    def build_prompt(self, user_request):
+    def build_prompt(self, user_request: str) -> str:
 
         return f"""
 {self.system_prompt}
@@ -21,18 +20,30 @@ User Request:
 {user_request}
 """
 
-    def plan_trip(self, user_request: str) -> TravelRequest:
+    def ask_for_missing_information(self, missing_fields: list[str]) -> str:
+
+        questions = {
+            "destination": "📍 Where would you like to travel?",
+            "days": "📅 How many days are you planning to stay?",
+            "budget": "💰 What's your approximate budget?",
+            "travelers": "👥 How many people are travelling?",
+        }
+
+        return "\n".join(
+            questions[field]
+            for field in missing_fields
+            if field in questions
+        )
+
+    def plan_trip(self, user_request: str):
 
         prompt = self.build_prompt(user_request)
 
-        response = self.llm.generate(prompt)
+        request = self.llm.parse_travel_request(prompt)
 
-        data = json.loads(response)
+        missing_fields = TravelRequestValidator.validate(request)
 
-        return TravelRequest(
-            destination=data.get("destination"),
-            days=data.get("days"),
-            budget=data.get("budget"),
-            travelers=data.get("travelers"),
-            preference=data.get("preference"),
-        )
+        if missing_fields:
+            return self.ask_for_missing_information(missing_fields)
+
+        return request
