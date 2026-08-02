@@ -1,15 +1,21 @@
-from services.llm_service import GeminiService
+from agents.root_agent import RootTravelAgent
 
 
 def main():
-    gemini = GeminiService()
 
-    question = input("You: ")
+    agent = RootTravelAgent()
 
-    answer = gemini.generate_response(question)
+    while True:
 
-    print("\nGemini:")
-    print(answer)
+        user = input("\nYou: ")
+
+        if user.lower() == "exit":
+            break
+
+        response = agent.plan_trip(user)
+
+        print("\nTravel Agent:\n")
+        print(response)
 
 
 if __name__ == "__main__":

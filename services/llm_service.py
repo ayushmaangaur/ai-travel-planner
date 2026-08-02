@@ -3,7 +3,7 @@ from google import genai
 from config.settings import GEMINI_API_KEY, MODEL_NAME
 
 
-class GeminiService:
+class LLMService:
     def __init__(self):
         self.client = genai.Client(api_key=GEMINI_API_KEY)
 
