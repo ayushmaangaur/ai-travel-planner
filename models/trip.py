@@ -1,13 +1,16 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
 
 @dataclass
 class TravelRequest:
-    destination: str | None = None
-    days: int | None = None
-    budget: int | None = None
-    travelers: int | None = None
-    preference: str | None = None
+    current_location: Optional[str] = None
+    origin: Optional[str] = None
+    destination: Optional[str] = None
+    days: Optional[int] = None
+    budget: Optional[float] = None
+    travelers: Optional[int] = None
+    preference: Optional[str] = None
 
 
 @dataclass

@@ -1,14 +1,17 @@
-from agents.root_agent import RootTravelAgent
+from agents.flight_agent import FlightAgent
+from models.trip import TravelRequest
 
-agent = RootTravelAgent()
 
-while True:
-    user = input("\nYou: ")
+request = TravelRequest(
+    origin="Delhi",
+    destination="Tokyo",
+    days=7,
+    budget=100000,
+    travelers=2
+)
 
-    if user.lower() == "exit":
-        break
+agent = FlightAgent()
 
-    response = agent.plan_trip(user)
+result = agent.search_flights(request)
 
-    print("\nAgent:")
-    print(response)
+print(result)

@@ -20,6 +20,8 @@ class RootTravelAgent:
 
 Current Travel Request:
 
+Current Location: {request.current_location}
+Origin: {request.origin}
 Destination: {request.destination}
 Days: {request.days}
 Budget: {request.budget}
@@ -34,7 +36,9 @@ New User Message:
     def ask_for_missing_information(self, missing_fields: list[str]) -> str:
 
         questions = {
-            "destination": "📍 Where would you like to travel?",
+            "current_location": "📍 Where are you currently located?",
+            "origin": "✈️ Where would you like your journey to start from?",
+            "destination": "🌍 Where would you like to travel?",
             "days": "📅 How many days are you planning to stay?",
             "budget": "💰 What's your approximate budget?",
             "travelers": "👥 How many people are travelling?",
@@ -47,7 +51,6 @@ New User Message:
         )
 
     def plan_trip(self, user_request: str):
-
         prompt = self.build_prompt(user_request)
 
         new_request = self.llm.parse_travel_request(prompt)
@@ -55,6 +58,12 @@ New User Message:
         self.session.update_request(new_request)
 
         request = self.session.request
+
+        # If user is currently somewhere but didn't specify
+        # a different origin, assume their current location
+        # is the trip origin.
+        if request.current_location and not request.origin:
+            request.origin = request.current_location
 
         missing_fields = TravelRequestValidator.validate(request)
 

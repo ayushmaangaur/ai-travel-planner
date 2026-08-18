@@ -4,6 +4,7 @@ from models.trip import TravelRequest
 class TravelRequestValidator:
 
     REQUIRED_FIELDS = [
+        "origin",
         "destination",
         "days",
         "budget",

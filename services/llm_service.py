@@ -25,6 +25,8 @@ class LLMService:
         data = json.loads(response)
 
         return TravelRequest(
+            current_location=data.get("current_location"),
+            origin=data.get("origin"),
             destination=data.get("destination"),
             days=data.get("days"),
             budget=data.get("budget"),
