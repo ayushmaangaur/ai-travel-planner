@@ -1,18 +1,10 @@
-from agents.flight_agent import FlightAgent
-from models.trip import TravelRequest
+from agents.root_agent import RootTravelAgent
 
 
-request = TravelRequest(
-    origin="Delhi",
-    destination="Tokyo",
-    days=7,
-    budget=50000,
-    travelers=2,
-    preference="non-stop"
+agent = RootTravelAgent()
+
+result = agent.plan_trip(
+    input("You: ")
 )
-
-agent = FlightAgent()
-
-result = agent.search_flights(request)
 
 print(result)

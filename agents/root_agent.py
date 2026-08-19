@@ -2,6 +2,7 @@ from services.llm_service import LLMService
 from prompts.system_prompts import ROOT_AGENT_PROMPT
 from utils.validator import TravelRequestValidator
 from models.session import ConversationSession
+from agents.flight_agent import FlightAgent
 
 
 class RootTravelAgent:
@@ -10,6 +11,7 @@ class RootTravelAgent:
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
+        self.flight_agent = FlightAgent()
 
     def build_prompt(self, user_request: str) -> str:
 
@@ -70,4 +72,4 @@ New User Message:
         if missing_fields:
             return self.ask_for_missing_information(missing_fields)
 
-        return request
+        return self.flight_agent.search_flights(request)
