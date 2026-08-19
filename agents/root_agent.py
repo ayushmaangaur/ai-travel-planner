@@ -2,7 +2,11 @@ from services.llm_service import LLMService
 from prompts.system_prompts import ROOT_AGENT_PROMPT
 from utils.validator import TravelRequestValidator
 from models.session import ConversationSession
+
 from agents.flight_agent import FlightAgent
+from agents.hotel_agent import HotelAgent
+from agents.weather_agent import WeatherAgent
+from models.trip import TravelPlan
 
 
 class RootTravelAgent:
@@ -11,7 +15,10 @@ class RootTravelAgent:
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
+
         self.flight_agent = FlightAgent()
+        self.hotel_agent = HotelAgent()
+        self.weather_agent = WeatherAgent()
 
     def build_prompt(self, user_request: str) -> str:
 
@@ -72,4 +79,31 @@ New User Message:
         if missing_fields:
             return self.ask_for_missing_information(missing_fields)
 
-        return self.flight_agent.search_flights(request)
+        flight_result = None
+        hotel_result = None
+        weather_result = None
+
+        errors = []
+
+        try:
+            flight_result = self.flight_agent.search_flights(request)
+        except Exception as e:
+            errors.append(f"Flight service unavailable: {str(e)}")
+
+        try:
+            hotel_result = self.hotel_agent.search_hotels(request)
+        except Exception as e:
+            errors.append(f"Hotel service unavailable: {str(e)}")
+
+        try:
+            weather_result = self.weather_agent.get_weather(request)
+        except Exception as e:
+            errors.append(f"Weather service unavailable: {str(e)}")
+
+        return TravelPlan(
+            destination=request.destination,
+            flights=flight_result,
+            hotels=hotel_result,
+            weather=weather_result,
+            errors=errors,
+        )

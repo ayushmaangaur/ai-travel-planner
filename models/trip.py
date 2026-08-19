@@ -1,6 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
+from models.flight import FlightRecommendation
+from models.hotel import HotelRecommendation
+from models.weather import WeatherRecommendation
+
 
 @dataclass
 class TravelRequest:
@@ -16,8 +20,7 @@ class TravelRequest:
 @dataclass
 class TravelPlan:
     destination: str
-    itinerary: list[str] = field(default_factory=list)
-    hotel: str | None = None
-    weather: str | None = None
-    flights: list[str] = field(default_factory=list)
-    estimated_cost: int | None = None
+    flights: FlightRecommendation | None = None
+    hotels: HotelRecommendation | None = None
+    weather: WeatherRecommendation | None = None
+    errors: list[str] = field(default_factory=list)
