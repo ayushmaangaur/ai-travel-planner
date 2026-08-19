@@ -86,8 +86,49 @@ Return ONLY valid JSON in this format:
                 )
             )
 
+        selected_options = self.select_flights(options, request)
+
         return FlightRecommendation(
             origin=data.get("origin"),
             destination=data.get("destination"),
-            options=options,
+            options=selected_options,
         )
+
+    def select_flights(
+        self,
+        options: list[FlightOption],
+        request: TravelRequest
+    ) -> list[FlightOption]:
+
+        # Filter flights that exceed the budget
+        if request.budget is not None:
+            options = [
+                flight
+                for flight in options
+                if flight.price is not None
+                and flight.price <= request.budget
+            ]
+
+        # Apply preference
+        preference = (request.preference or "").lower()
+
+        if "non-stop" in preference or "nonstop" in preference:
+            options.sort(key=lambda flight: (
+                flight.stops,
+                flight.price if flight.price is not None else float("inf")
+            ))
+
+        elif "cheapest" in preference or "cheap" in preference:
+            options.sort(
+                key=lambda flight:
+                flight.price if flight.price is not None else float("inf")
+            )
+
+        else:
+            # Default: fewer stops first, then cheaper price
+            options.sort(key=lambda flight: (
+                flight.stops,
+                flight.price if flight.price is not None else float("inf")
+            ))
+
+        return options

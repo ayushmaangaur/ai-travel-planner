@@ -6,8 +6,9 @@ request = TravelRequest(
     origin="Delhi",
     destination="Tokyo",
     days=7,
-    budget=100000,
-    travelers=2
+    budget=50000,
+    travelers=2,
+    preference="non-stop"
 )
 
 agent = FlightAgent()
