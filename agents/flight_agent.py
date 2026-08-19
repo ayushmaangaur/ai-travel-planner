@@ -100,7 +100,7 @@ Return ONLY valid JSON in this format:
         request: TravelRequest
     ) -> list[FlightOption]:
 
-        # Filter flights that exceed the budget
+        # Remove flights that exceed the available budget
         if request.budget is not None:
             options = [
                 flight
@@ -109,7 +109,6 @@ Return ONLY valid JSON in this format:
                 and flight.price <= request.budget
             ]
 
-        # Apply preference
         preference = (request.preference or "").lower()
 
         if "non-stop" in preference or "nonstop" in preference:
@@ -125,7 +124,6 @@ Return ONLY valid JSON in this format:
             )
 
         else:
-            # Default: fewer stops first, then cheaper price
             options.sort(key=lambda flight: (
                 flight.stops,
                 flight.price if flight.price is not None else float("inf")

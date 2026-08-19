@@ -89,17 +89,24 @@ Return ONLY valid JSON in this format:
         request: TravelRequest
     ) -> list[HotelOption]:
 
-        if request.budget is not None:
+        # Filter based on total accommodation cost
+        if request.budget is not None and request.days is not None:
             options = [
                 hotel
                 for hotel in options
                 if hotel.price_per_night is not None
-                and hotel.price_per_night <= request.budget
+                and hotel.price_per_night * request.days <= request.budget
             ]
 
         preference = (request.preference or "").lower()
 
-        if "cheap" in preference or "budget" in preference:
+        if "luxury" in preference:
+            options.sort(
+                key=lambda hotel: hotel.rating or 0,
+                reverse=True
+            )
+
+        elif "cheap" in preference or "budget" in preference:
             options.sort(
                 key=lambda hotel:
                 hotel.price_per_night
@@ -107,22 +114,10 @@ Return ONLY valid JSON in this format:
                 else float("inf")
             )
 
-        elif "luxury" in preference:
-            options.sort(
-                key=lambda hotel:
-                hotel.rating
-                if hotel.rating is not None
-                else 0,
-                reverse=True
-            )
-
         else:
-            # Default: higher-rated hotels first
+            # Default: higher rated hotels first
             options.sort(
-                key=lambda hotel:
-                hotel.rating
-                if hotel.rating is not None
-                else 0,
+                key=lambda hotel: hotel.rating or 0,
                 reverse=True
             )
 
