@@ -13,30 +13,37 @@ class WeatherAgent:
     def build_prompt(self, request: TravelRequest) -> str:
 
         return f"""
-You are a Weather Agent.
+You are a Weather Agent in an AI Travel Planner.
 
-Your job is to provide a weather forecast for the user's trip.
+Provide a weather forecast for the destination.
 
 Travel Request:
 
 Destination: {request.destination}
 Days: {request.days}
 
-Provide a weather forecast for each day of the trip.
+Generate a forecast that can be used by an itinerary planner.
 
 Consider:
-- Date/day
+- Date or day
 - Weather condition
 - Temperature
 - Precipitation probability
 
-Return ONLY valid JSON in this format:
+IMPORTANT:
+- Return ONLY valid JSON.
+- Do not include markdown.
+- Do not include explanations.
+- forecast MUST be a JSON list.
+- Each forecast item must be a JSON object.
+
+Return exactly this structure:
 
 {{
     "destination": "{request.destination}",
     "forecast": [
         {{
-            "date": "...",
+            "date": "Day 1",
             "condition": "...",
             "temperature": "...",
             "precipitation": "..."
@@ -50,22 +57,28 @@ Return ONLY valid JSON in this format:
         request: TravelRequest
     ) -> WeatherRecommendation:
 
+        prompt = self.build_prompt(request)
+
+        response = self.llm.generate(prompt)
+
         try:
-            prompt = self.build_prompt(request)
-            response = self.llm.generate(prompt)
-
             data = json.loads(response)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(
+                f"WeatherAgent received invalid JSON: {e}"
+            ) from e
 
-            if not isinstance(data, dict):
-                data = {}
-
-        except (json.JSONDecodeError, TypeError, ValueError):
-            data = {}
+        if not isinstance(data, dict):
+            raise ValueError(
+                "WeatherAgent response must be a JSON object"
+            )
 
         raw_forecast = data.get("forecast", [])
 
         if not isinstance(raw_forecast, list):
-            raw_forecast = []
+            raise ValueError(
+                "WeatherAgent forecast must be a list"
+            )
 
         forecast = []
 
@@ -76,14 +89,17 @@ Return ONLY valid JSON in this format:
 
             forecast.append(
                 WeatherDay(
-                    date=day.get("date", "Unknown"),
-                    condition=day.get("condition", "Unknown"),
-                    temperature=day.get("temperature", "Unknown"),
-                    precipitation=day.get("precipitation", "Unknown"),
+                    date=day.get("date"),
+                    condition=day.get("condition"),
+                    temperature=day.get("temperature"),
+                    precipitation=day.get("precipitation"),
                 )
             )
 
         return WeatherRecommendation(
-            destination=request.destination,
+            destination=data.get(
+                "destination",
+                request.destination
+            ),
             forecast=forecast,
         )

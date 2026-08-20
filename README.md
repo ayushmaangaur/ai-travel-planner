@@ -239,3 +239,46 @@ Frontend
 ```
 
 The immediate priority is to make the backend reliable before introducing A2A communication or the frontend.
+
+------------------
+---------------------
+
+# AI Travel Planner
+
+An AI-powered travel planning system built with Python using a multi-agent architecture.
+
+The system converts a natural-language travel request into a structured travel plan containing:
+
+- Flight recommendations
+- Hotel recommendations
+- Weather information
+- A day-by-day itinerary
+
+---
+
+## Current Architecture
+
+```text
+User
+ │
+ ▼
+RootTravelAgent
+ │
+ ├── LLMService
+ │      └── Gemini
+ │           └── TravelRequest
+ │
+ ├── FlightAgent
+ │      └── FlightRecommendation
+ │
+ ├── HotelAgent
+ │      └── HotelRecommendation
+ │
+ ├── WeatherAgent
+ │      └── WeatherRecommendation
+ │
+ └── ItineraryGenerator
+        └── Deterministic Python itinerary
+ │
+ ▼
+TravelPlan

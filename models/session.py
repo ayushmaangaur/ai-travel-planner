@@ -5,13 +5,26 @@ from models.trip import TravelRequest
 
 @dataclass
 class ConversationSession:
-    request: TravelRequest = field(default_factory=TravelRequest)
 
-    def update_request(self, new_request: TravelRequest):
+    request: TravelRequest = field(
+        default_factory=TravelRequest
+    )
+
+    missing_fields: list[str] = field(
+        default_factory=list
+    )
+
+    def update_request(
+        self,
+        new_request: TravelRequest
+    ):
 
         for field_info in fields(TravelRequest):
 
-            new_value = getattr(new_request, field_info.name)
+            new_value = getattr(
+                new_request,
+                field_info.name
+            )
 
             if new_value is not None:
 
