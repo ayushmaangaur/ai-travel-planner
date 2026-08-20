@@ -255,13 +255,45 @@ def test_root_agent_handles_flight_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    def fail_flights(request):
-        raise Exception("Flight API timeout")
+    from a2a.messages import A2AResponse
+
+    def fail_a2a(message):
+
+        if message.task == "search_flights":
+            return A2AResponse(
+                sender="FlightAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Flight API timeout",
+            )
+
+        if message.task == "search_hotels":
+            return A2AResponse(
+                sender="HotelAgent",
+                recipient="RootTravelAgent",
+                success=True,
+                result=HotelRecommendation(
+                    destination="Tokyo",
+                    options=[]
+                ),
+            )
+
+        if message.task == "get_weather":
+            return A2AResponse(
+                sender="WeatherAgent",
+                recipient="RootTravelAgent",
+                success=True,
+                result=WeatherRecommendation(
+                    destination="Tokyo",
+                    forecast=[]
+                ),
+            )
 
     monkeypatch.setattr(
-        agent.flight_agent,
-        "search_flights",
-        fail_flights
+        agent.a2a_router,
+        "send",
+        fail_a2a
     )
 
     result = agent.plan_trip(
@@ -270,26 +302,41 @@ def test_root_agent_handles_flight_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
-
     assert result.flights is None
     assert result.hotels is not None
     assert result.weather is not None
-
+    assert result.flight_status == "unavailable"
+    assert result.hotel_status == "available"
+    assert result.weather_status == "available"
     assert len(result.errors) == 1
-    assert "Flight service unavailable" in result.errors[0]
-
 
 def test_root_agent_handles_hotel_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    def fail_hotels(request):
-        raise Exception("Hotel service unavailable")
+    def fail_a2a(message):
+        from a2a.messages import A2AResponse
+
+        if message.task == "search_hotels":
+            return A2AResponse(
+                sender="HotelAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Hotel service unavailable",
+            )
+
+        return A2AResponse(
+            sender=message.recipient,
+            recipient=message.sender,
+            success=True,
+            result={},
+        )
 
     monkeypatch.setattr(
-        agent.hotel_agent,
-        "search_hotels",
-        fail_hotels
+        agent.a2a_router,
+        "send",
+        fail_a2a
     )
 
     result = agent.plan_trip(
@@ -298,11 +345,9 @@ def test_root_agent_handles_hotel_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
-
     assert result.flights is not None
     assert result.hotels is None
     assert result.weather is not None
-
     assert len(result.errors) == 1
     assert "Hotel service unavailable" in result.errors[0]
 
@@ -311,13 +356,29 @@ def test_root_agent_handles_weather_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    def fail_weather(request):
-        raise Exception("Weather API timeout")
+    def fail_a2a(message):
+        from a2a.messages import A2AResponse
+
+        if message.task == "get_weather":
+            return A2AResponse(
+                sender="WeatherAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Weather API timeout",
+            )
+
+        return A2AResponse(
+            sender=message.recipient,
+            recipient=message.sender,
+            success=True,
+            result={},
+        )
 
     monkeypatch.setattr(
-        agent.weather_agent,
-        "get_weather",
-        fail_weather
+        agent.a2a_router,
+        "send",
+        fail_a2a
     )
 
     result = agent.plan_trip(
@@ -326,11 +387,9 @@ def test_root_agent_handles_weather_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
-
     assert result.flights is not None
     assert result.hotels is not None
     assert result.weather is None
-
     assert len(result.errors) == 1
     assert "Weather service unavailable" in result.errors[0]
 
@@ -338,22 +397,41 @@ def test_root_agent_handles_all_agent_failures(monkeypatch):
 
     agent = RootTravelAgent()
 
-    monkeypatch.setattr(
-        agent.flight_agent,
-        "search_flights",
-        lambda request: (_ for _ in ()).throw(Exception("Flight failed"))
-    )
+    from a2a.messages import A2AResponse
+
+    def fail_a2a(message):
+
+        if message.task == "search_flights":
+            return A2AResponse(
+                sender="FlightAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Flight API failed",
+            )
+
+        if message.task == "search_hotels":
+            return A2AResponse(
+                sender="HotelAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Hotel API failed",
+            )
+
+        if message.task == "get_weather":
+            return A2AResponse(
+                sender="WeatherAgent",
+                recipient="RootTravelAgent",
+                success=False,
+                result=None,
+                error="Weather API failed",
+            )
 
     monkeypatch.setattr(
-        agent.hotel_agent,
-        "search_hotels",
-        lambda request: (_ for _ in ()).throw(Exception("Hotel failed"))
-    )
-
-    monkeypatch.setattr(
-        agent.weather_agent,
-        "get_weather",
-        lambda request: (_ for _ in ()).throw(Exception("Weather failed"))
+        agent.a2a_router,
+        "send",
+        fail_a2a
     )
 
     result = agent.plan_trip(
@@ -362,10 +440,14 @@ def test_root_agent_handles_all_agent_failures(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
-
     assert result.destination == "Tokyo"
+
     assert result.flights is None
     assert result.hotels is None
     assert result.weather is None
+
+    assert result.flight_status == "unavailable"
+    assert result.hotel_status == "unavailable"
+    assert result.weather_status == "unavailable"
 
     assert len(result.errors) == 3
