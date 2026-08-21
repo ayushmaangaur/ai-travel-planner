@@ -28,8 +28,8 @@ def make_agent():
         agent.session.request
     )
 
-    # Mock A2A router
-    agent.a2a_router = MagicMock()
+    # Mock A2A trancsport
+    agent.a2a_transport = MagicMock()
 
     return agent
 
@@ -58,7 +58,7 @@ def test_flight_agent_failure():
 
     agent = make_agent()
 
-    agent.a2a_router.send.side_effect = [
+    agent.a2a_transport.send.side_effect = [
         failure_response("Flight API failed"),
         success_response(
             HotelRecommendation(
@@ -95,7 +95,7 @@ def test_hotel_agent_failure():
 
     agent = make_agent()
 
-    agent.a2a_router.send.side_effect = [
+    agent.a2a_transport.send.side_effect =[
         success_response(
             FlightRecommendation(
                 origin="Delhi",
@@ -133,7 +133,7 @@ def test_weather_agent_failure():
 
     agent = make_agent()
 
-    agent.a2a_router.send.side_effect = [
+    agent.a2a_transport.send.side_effect =[
         success_response(
             FlightRecommendation(
                 origin="Delhi",
@@ -165,3 +165,36 @@ def test_weather_agent_failure():
 
     assert len(result.errors) == 1
     assert "WeatherAgent" in result.errors[0]
+
+def test_root_agent_uses_local_a2a_transport(monkeypatch):
+
+    agent = RootTravelAgent()
+
+    calls = []
+
+    original_send = agent.a2a_transport.send
+
+    def tracked_send(message):
+
+        calls.append(message.task)
+
+        return original_send(message)
+
+    monkeypatch.setattr(
+        agent.a2a_transport,
+        "send",
+        tracked_send
+    )
+
+    result = agent.plan_trip(
+        "I am in Delhi and want to visit Tokyo for 7 days "
+        "with 2 people. My budget is 50000."
+    )
+
+    assert result.destination == "Tokyo"
+
+    assert calls == [
+        "search_flights",
+        "search_hotels",
+        "get_weather",
+    ]

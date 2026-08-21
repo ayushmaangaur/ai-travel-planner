@@ -13,6 +13,7 @@ from utils.itinerary_generator import ItineraryGenerator
 
 from a2a.router import A2ARouter
 from a2a.messages import A2ARequest
+from a2a.local_transport import LocalA2ATransport
 
 
 class RootTravelAgent:
@@ -30,6 +31,10 @@ class RootTravelAgent:
             flight_agent=self.flight_agent,
             hotel_agent=self.hotel_agent,
             weather_agent=self.weather_agent,
+        )
+
+        self.a2a_transport = LocalA2ATransport(
+            self.a2a_router
         )
 
         self.itinerary_generator = ItineraryGenerator()
@@ -823,7 +828,7 @@ New User Message:
                 payload=request,
             )
 
-            flight_response = self.a2a_router.send(
+            flight_response = self.a2a_transport.send(
                 flight_message
             )
 
@@ -858,7 +863,7 @@ New User Message:
                 payload=request,
             )
 
-            hotel_response = self.a2a_router.send(
+            hotel_response = self.a2a_transport.send(
                 hotel_message
             )
 
@@ -893,7 +898,7 @@ New User Message:
                 payload=request,
             )
 
-            weather_response = self.a2a_router.send(
+            weather_response = self.a2a_transport.send(
                 weather_message
             )
 
