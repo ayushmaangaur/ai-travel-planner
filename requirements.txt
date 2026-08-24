@@ -1,0 +1,21 @@
+Name: fastapi
+Version: 0.141.1
+Summary: FastAPI framework, high performance, easy to learn, fast to code, ready for production
+Home-page: https://github.com/fastapi/fastapi
+Author: 
+Author-email: =?utf-8?q?Sebasti=C3=A1n_Ram=C3=ADrez?= <tiangolo@gmail.com>
+License-Expression: MIT
+Location: V:\ai-travel-planner\.venv\Lib\site-packages
+Requires: annotated-doc, pydantic, starlette, typing-extensions, typing-inspection
+Required-by: google-adk
+
+Name: uvicorn
+Version: 0.52.1
+Summary: The lightning-fast ASGI server.
+Home-page: https://uvicorn.dev/
+Author: 
+Author-email: Tom Christie <tom@tomchristie.com>
+License-Expression: BSD-3-Clause
+Location: V:\ai-travel-planner\.venv\Lib\site-packages
+Requires: click, h11
+Required-by: google-adk

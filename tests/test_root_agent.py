@@ -3,19 +3,23 @@ from unittest.mock import MagicMock
 from agents.root_agent import RootTravelAgent
 
 from models.trip import TravelPlan
+
 from models.flight import FlightRecommendation
 from models.hotel import HotelRecommendation
 from models.weather import WeatherRecommendation
 
+from a2a.messages import A2AResponse
+
+from a2a.local_transport import LocalA2ATransport
+
 
 def make_agent():
-
     agent = RootTravelAgent()
 
     # Mock LLM so tests never call Gemini
     agent.llm = MagicMock()
 
-    # Create a complete TravelRequest
+    # Complete TravelRequest
     agent.session.request.origin = "Delhi"
     agent.session.request.destination = "Tokyo"
     agent.session.request.days = 7
@@ -26,35 +30,51 @@ def make_agent():
         agent.session.request
     )
 
-    # Mock all specialized agents
-    agent.flight_agent = MagicMock()
-    agent.hotel_agent = MagicMock()
-    agent.weather_agent = MagicMock()
+    # Mock A2A trancsport
+    agent.a2a_transport = MagicMock()
 
     return agent
+
+
+def success_response(result):
+    return A2AResponse(
+        sender="SpecializedAgent",
+        recipient="RootTravelAgent",
+        success=True,
+        result=result,
+        error=None,
+    )
+
+
+def failure_response(error):
+    return A2AResponse(
+        sender="SpecializedAgent",
+        recipient="RootTravelAgent",
+        success=False,
+        result=None,
+        error=error,
+    )
 
 
 def test_flight_agent_failure():
 
     agent = make_agent()
 
-    agent.flight_agent.search_flights.side_effect = Exception(
-        "Flight API failed"
-    )
-
-    agent.hotel_agent.search_hotels.return_value = (
-        HotelRecommendation(
-            destination="Tokyo",
-            options=[]
-        )
-    )
-
-    agent.weather_agent.get_weather.return_value = (
-        WeatherRecommendation(
-            destination="Tokyo",
-            forecast=[]
-        )
-    )
+    agent.a2a_transport.send.side_effect = [
+        failure_response("Flight API failed"),
+        success_response(
+            HotelRecommendation(
+                destination="Tokyo",
+                options=[]
+            )
+        ),
+        success_response(
+            WeatherRecommendation(
+                destination="Tokyo",
+                forecast=[]
+            )
+        ),
+    ]
 
     result = agent.plan_trip("Plan my trip")
 
@@ -77,24 +97,22 @@ def test_hotel_agent_failure():
 
     agent = make_agent()
 
-    agent.flight_agent.search_flights.return_value = (
-        FlightRecommendation(
-            origin="Delhi",
-            destination="Tokyo",
-            options=[]
-        )
-    )
-
-    agent.hotel_agent.search_hotels.side_effect = Exception(
-        "Hotel API failed"
-    )
-
-    agent.weather_agent.get_weather.return_value = (
-        WeatherRecommendation(
-            destination="Tokyo",
-            forecast=[]
-        )
-    )
+    agent.a2a_transport.send.side_effect =[
+        success_response(
+            FlightRecommendation(
+                origin="Delhi",
+                destination="Tokyo",
+                options=[]
+            )
+        ),
+        failure_response("Hotel API failed"),
+        success_response(
+            WeatherRecommendation(
+                destination="Tokyo",
+                forecast=[]
+            )
+        ),
+    ]
 
     result = agent.plan_trip("Plan my trip")
 
@@ -117,24 +135,22 @@ def test_weather_agent_failure():
 
     agent = make_agent()
 
-    agent.flight_agent.search_flights.return_value = (
-        FlightRecommendation(
-            origin="Delhi",
-            destination="Tokyo",
-            options=[]
-        )
-    )
-
-    agent.hotel_agent.search_hotels.return_value = (
-        HotelRecommendation(
-            destination="Tokyo",
-            options=[]
-        )
-    )
-
-    agent.weather_agent.get_weather.side_effect = Exception(
-        "Weather API failed"
-    )
+    agent.a2a_transport.send.side_effect =[
+        success_response(
+            FlightRecommendation(
+                origin="Delhi",
+                destination="Tokyo",
+                options=[]
+            )
+        ),
+        success_response(
+            HotelRecommendation(
+                destination="Tokyo",
+                options=[]
+            )
+        ),
+        failure_response("Weather API failed"),
+    ]
 
     result = agent.plan_trip("Plan my trip")
 
@@ -151,3 +167,44 @@ def test_weather_agent_failure():
 
     assert len(result.errors) == 1
     assert "WeatherAgent" in result.errors[0]
+
+def test_root_agent_uses_local_a2a_transport(monkeypatch):
+
+    agent = RootTravelAgent()
+
+    calls = []
+
+    original_send = agent.a2a_transport.send
+
+    def tracked_send(message):
+
+        calls.append(message.task)
+
+        return original_send(message)
+
+    monkeypatch.setattr(
+        agent.a2a_transport,
+        "send",
+        tracked_send
+    )
+
+    result = agent.plan_trip(
+        "I am in Delhi and want to visit Tokyo for 7 days "
+        "with 2 people. My budget is 50000."
+    )
+
+    assert result.destination == "Tokyo"
+
+    assert calls == [
+        "search_flights",
+        "search_hotels",
+        "get_weather",
+    ]
+
+def test_root_agent_creates_local_transport_by_default():
+    agent = RootTravelAgent()
+
+    assert isinstance(
+        agent.a2a_transport,
+        LocalA2ATransport
+    )

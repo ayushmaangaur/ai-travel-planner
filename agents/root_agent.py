@@ -11,10 +11,15 @@ from agents.hotel_agent import HotelAgent
 from agents.weather_agent import WeatherAgent
 from utils.itinerary_generator import ItineraryGenerator
 
+from a2a.router import A2ARouter
+from a2a.messages import A2ARequest
+
+from a2a.local_transport import LocalA2ATransport
+
 
 class RootTravelAgent:
 
-    def __init__(self):
+    def __init__(self, a2a_transport=None):
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
@@ -22,6 +27,30 @@ class RootTravelAgent:
         self.flight_agent = FlightAgent()
         self.hotel_agent = HotelAgent()
         self.weather_agent = WeatherAgent()
+
+        self.a2a_router = A2ARouter(
+            flight_agent=self.flight_agent,
+            hotel_agent=self.hotel_agent,
+            weather_agent=self.weather_agent,
+        )
+
+        # --------------------------------------------------------
+        # A2A TRANSPORT DEPENDENCY INJECTION
+        # --------------------------------------------------------
+        #
+        # If a transport is supplied, use it.
+        # Otherwise, preserve the current local behavior.
+        #
+        # This keeps existing code/tests working while allowing
+        # HTTP transport to be injected later.
+        # --------------------------------------------------------
+
+        if a2a_transport is None:
+            self.a2a_transport = LocalA2ATransport(
+                self.a2a_router
+            )
+        else:
+            self.a2a_transport = a2a_transport
 
         self.itinerary_generator = ItineraryGenerator()
 
@@ -807,9 +836,23 @@ New User Message:
 
         try:
 
-            flight_result = self.flight_agent.search_flights(
-                request
+            flight_message = A2ARequest(
+                sender="root-agent",
+                recipient="flight-agent",
+                task="search_flights",
+                payload=request,
             )
+
+            flight_response = self.a2a_transport.send(
+                flight_message
+            )
+
+            if flight_response.success:
+                flight_result = flight_response.result
+            else:
+                raise RuntimeError(
+                    flight_response.error or "FlightAgent failed"
+                )
 
         except Exception as e:
 
@@ -828,9 +871,23 @@ New User Message:
 
         try:
 
-            hotel_result = self.hotel_agent.search_hotels(
-                request
+            hotel_message = A2ARequest(
+                sender="root-agent",
+                recipient="hotel-agent",
+                task="search_hotels",
+                payload=request,
             )
+
+            hotel_response = self.a2a_transport.send(
+                hotel_message
+            )
+
+            if hotel_response.success:
+                hotel_result = hotel_response.result
+            else:
+                raise RuntimeError(
+                    hotel_response.error or "HotelAgent failed"
+                )
 
         except Exception as e:
 
@@ -849,9 +906,23 @@ New User Message:
 
         try:
 
-            weather_result = self.weather_agent.get_weather(
-                request
+            weather_message = A2ARequest(
+                sender="root-agent",
+                recipient="weather-agent",
+                task="get_weather",
+                payload=request,
             )
+
+            weather_response = self.a2a_transport.send(
+                weather_message
+            )
+
+            if weather_response.success:
+                weather_result = weather_response.result
+            else:
+                raise RuntimeError(
+                    weather_response.error or "WeatherAgent failed"
+                )
 
         except Exception as e:
 
