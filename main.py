@@ -1,7 +1,7 @@
-from agents.root_agent import RootTravelAgent
+from app.composition import create_local_agent
 
 
-agent = RootTravelAgent()
+agent = create_local_agent()
 
 while True:
 

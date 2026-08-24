@@ -10,6 +10,8 @@ from models.weather import WeatherRecommendation
 
 from a2a.messages import A2AResponse
 
+from a2a.local_transport import LocalA2ATransport
+
 
 def make_agent():
     agent = RootTravelAgent()
@@ -198,3 +200,11 @@ def test_root_agent_uses_local_a2a_transport(monkeypatch):
         "search_hotels",
         "get_weather",
     ]
+
+def test_root_agent_creates_local_transport_by_default():
+    agent = RootTravelAgent()
+
+    assert isinstance(
+        agent.a2a_transport,
+        LocalA2ATransport
+    )

@@ -13,12 +13,13 @@ from utils.itinerary_generator import ItineraryGenerator
 
 from a2a.router import A2ARouter
 from a2a.messages import A2ARequest
+
 from a2a.local_transport import LocalA2ATransport
 
 
 class RootTravelAgent:
 
-    def __init__(self):
+    def __init__(self, a2a_transport=None):
         self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
@@ -33,9 +34,23 @@ class RootTravelAgent:
             weather_agent=self.weather_agent,
         )
 
-        self.a2a_transport = LocalA2ATransport(
-            self.a2a_router
-        )
+        # --------------------------------------------------------
+        # A2A TRANSPORT DEPENDENCY INJECTION
+        # --------------------------------------------------------
+        #
+        # If a transport is supplied, use it.
+        # Otherwise, preserve the current local behavior.
+        #
+        # This keeps existing code/tests working while allowing
+        # HTTP transport to be injected later.
+        # --------------------------------------------------------
+
+        if a2a_transport is None:
+            self.a2a_transport = LocalA2ATransport(
+                self.a2a_router
+            )
+        else:
+            self.a2a_transport = a2a_transport
 
         self.itinerary_generator = ItineraryGenerator()
 
