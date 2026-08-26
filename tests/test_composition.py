@@ -3,7 +3,11 @@ from unittest.mock import MagicMock
 from app.composition import (
     create_local_agent,
     create_http_agent,
+    create_local_service,
+    create_http_service,
 )
+
+from app.travel_service import TravelService
 
 from agents.root_agent import RootTravelAgent
 from a2a.local_transport import LocalA2ATransport
@@ -43,3 +47,44 @@ def test_create_http_agent_passes_configuration():
     )
 
     assert agent.a2a_transport.timeout == 5.0
+
+def test_create_local_service():
+
+    service = create_local_service()
+
+    assert isinstance(
+        service,
+        TravelService
+    )
+
+    assert isinstance(
+        service.agent,
+        RootTravelAgent
+    )
+
+    assert isinstance(
+        service.agent.a2a_transport,
+        LocalA2ATransport
+    )
+
+
+def test_create_http_service():
+
+    service = create_http_service(
+        "http://localhost:8000"
+    )
+
+    assert isinstance(
+        service,
+        TravelService
+    )
+
+    assert isinstance(
+        service.agent,
+        RootTravelAgent
+    )
+
+    assert isinstance(
+        service.agent.a2a_transport,
+        HTTPA2ATransport
+    )

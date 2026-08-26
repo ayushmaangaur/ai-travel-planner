@@ -7,6 +7,8 @@ from agents.flight_agent import FlightAgent
 from agents.hotel_agent import HotelAgent
 from agents.weather_agent import WeatherAgent
 
+from app.travel_service import TravelService
+
 
 def create_local_agent() -> RootTravelAgent:
     """
@@ -66,3 +68,27 @@ def create_server_app():
     )
 
     return create_app(router)
+
+def create_local_service() -> TravelService:
+    """
+    Create the application service using
+    local in-process A2A communication.
+    """
+    agent = create_local_agent()
+    return TravelService(agent)
+
+
+def create_http_service(
+    server_url: str,
+    timeout: float = 10.0,
+) -> TravelService:
+    """
+    Create the application service using
+    HTTP-based A2A communication.
+    """
+    agent = create_http_agent(
+        server_url,
+        timeout,
+    )
+    return TravelService(agent)
+
