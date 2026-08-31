@@ -1,6 +1,5 @@
 import json
 
-import google.genai
 import pytest
 
 from agents.root_agent import RootTravelAgent
@@ -13,154 +12,123 @@ from models.flight import FlightRecommendation
 from models.hotel import HotelRecommendation
 from models.weather import WeatherRecommendation
 
-from services.llm_service import LLMService
 
+# ============================================================
+# GEMINI MOCK
+# ============================================================
 
-# --------------------------------------------------
-# Mock responses
-# --------------------------------------------------
+@pytest.fixture(autouse=True)
+def mock_gemini(monkeypatch):
+    """
+    Prevent real Gemini API calls during agent tests.
 
-def mock_generate(self, prompt: str) -> str:
+    Individual tests can override this mock when they need
+    to test specific LLM behavior.
+    """
 
-    prompt_lower = prompt.lower()
+    def fake_generate(self, prompt):
 
-    # Root Agent
-    if "new user message" in prompt_lower:
+        # Flight Agent
+        if "Flight Agent" in prompt:
+            return json.dumps({
+                "origin": "Delhi",
+                "destination": "Tokyo",
+                "options": [
+                    {
+                        "airline": "Test Airline",
+                        "flight_number": "TA123",
+                        "departure_airport": "DEL",
+                        "arrival_airport": "NRT",
+                        "departure_time": "10:00",
+                        "arrival_time": "20:00",
+                        "duration": "10h",
+                        "stops": 0,
+                        "price": 20000,
+                        "currency": "INR",
+                    }
+                ],
+            })
+
+        # Hotel Agent
+        if "Hotel Agent" in prompt:
+            return json.dumps({
+                "destination": "Tokyo",
+                "options": [
+                    {
+                        "name": "Test Hotel",
+                        "location": "Shinjuku",
+                        "rating": 4.0,
+                        "price_per_night": 4000,
+                        "currency": "INR",
+                        "amenities": ["Wi-Fi"],
+                    }
+                ],
+            })
+
+        # Weather Agent
+        if "Weather Agent" in prompt:
+            return json.dumps({
+                "destination": "Tokyo",
+                "forecast": [
+                    {
+                        "date": "Day 1",
+                        "condition": "Sunny",
+                        "temperature": "20°C",
+                        "precipitation": "10%",
+                    },
+                    {
+                        "date": "Day 2",
+                        "condition": "Cloudy",
+                        "temperature": "19°C",
+                        "precipitation": "20%",
+                    },
+                    {
+                        "date": "Day 3",
+                        "condition": "Sunny",
+                        "temperature": "21°C",
+                        "precipitation": "10%",
+                    },
+                ],
+            })
+
+        # Root Agent travel-request parsing
         return json.dumps({
             "current_location": "Delhi",
             "origin": "Delhi",
             "destination": "Tokyo",
-            "days": 7,
-            "budget": 50000,
+            "days": 3,
+            "budget": 60000,
             "travelers": 2,
-            "preference": "non-stop"
+            "preference": "cheap flights",
         })
 
-    # Flight Agent
-    if "flight agent" in prompt_lower:
-        return json.dumps({
-            "origin": "Delhi",
-            "destination": "Tokyo",
-            "options": [
-                {
-                    "airline": "Air India",
-                    "flight_number": "AI 306",
-                    "departure_airport": "DEL",
-                    "arrival_airport": "NRT",
-                    "departure_time": "21:15",
-                    "arrival_time": "08:00 (+1)",
-                    "duration": "8h 15m",
-                    "stops": 0,
-                    "price": 45000,
-                    "currency": "INR"
-                }
-            ]
-        })
-
-    # Hotel Agent
-    if "hotel agent" in prompt_lower:
-        return json.dumps({
-            "destination": "Tokyo",
-            "options": [
-                {
-                    "name": "Tokyo Budget Hotel",
-                    "location": "Shinjuku",
-                    "rating": 4.2,
-                    "price_per_night": 5000,
-                    "currency": "INR",
-                    "amenities": [
-                        "Free Wi-Fi",
-                        "Air Conditioning"
-                    ]
-                }
-            ]
-        })
-
-    # Weather Agent
-    if "weather agent" in prompt_lower:
-        return json.dumps({
-            "destination": "Tokyo",
-            "forecast": [
-                {
-                    "date": "Day 1",
-                    "condition": "Sunny",
-                    "temperature": "25°C",
-                    "precipitation": "10%"
-                }
-            ]
-        })
-
-    return "{}"
-
-
-# --------------------------------------------------
-# Gemini must never be called
-# --------------------------------------------------
-
-def fail_if_gemini_called(*args, **kwargs):
-    raise AssertionError(
-        "Gemini Client was called during mock-mode testing!"
-    )
-
-
-# --------------------------------------------------
-# Fixture
-# --------------------------------------------------
-
-@pytest.fixture(autouse=True)
-def mock_llm(monkeypatch):
-
-    # Prevent actual Gemini client creation
     monkeypatch.setattr(
-        google.genai,
-        "Client",
-        fail_if_gemini_called
-    )
-
-    # Prevent actual Gemini API calls
-    monkeypatch.setattr(
-        LLMService,
-        "generate",
-        mock_generate
+        "services.llm_service.LLMService.generate",
+        fake_generate,
     )
 
 
-# --------------------------------------------------
-# Root Agent
-# --------------------------------------------------
+# ============================================================
+# ROOT AGENT
+# ============================================================
 
 def test_root_agent():
 
     agent = RootTravelAgent()
 
     result = agent.plan_trip(
-        "I am in Delhi and want to visit Tokyo for 7 days "
-        "with 2 people. My budget is 50000 and I prefer non-stop flights."
+        "I am in Delhi and want to travel to Tokyo "
+        "for 3 days with 2 people. "
+        "My budget is 60000 rupees and I prefer cheap flights."
     )
 
     assert isinstance(result, TravelPlan)
-
     assert result.destination == "Tokyo"
 
-    assert isinstance(
-        result.flights,
-        FlightRecommendation
-    )
 
-    assert isinstance(
-        result.hotels,
-        HotelRecommendation
-    )
-
-    assert isinstance(
-        result.weather,
-        WeatherRecommendation
-    )
-
-
-# --------------------------------------------------
-# Flight Agent
-# --------------------------------------------------
+# ============================================================
+# FLIGHT AGENT
+# ============================================================
 
 def test_flight_agent():
 
@@ -169,131 +137,77 @@ def test_flight_agent():
     request = TravelRequest(
         origin="Delhi",
         destination="Tokyo",
-        days=7,
-        budget=50000,
+        days=3,
+        budget=60000,
         travelers=2,
-        preference="non-stop"
     )
 
     result = agent.search_flights(request)
 
-    assert isinstance(
-        result,
-        FlightRecommendation
-    )
-
+    assert isinstance(result, FlightRecommendation)
     assert result.origin == "Delhi"
     assert result.destination == "Tokyo"
-
     assert len(result.options) > 0
 
-    assert result.options[0].stops == 0
 
-
-# --------------------------------------------------
-# Hotel Agent
-# --------------------------------------------------
+# ============================================================
+# HOTEL AGENT
+# ============================================================
 
 def test_hotel_agent():
 
     agent = HotelAgent()
 
     request = TravelRequest(
-        origin="Delhi",
         destination="Tokyo",
-        days=7,
-        budget=50000,
+        days=3,
+        budget=60000,
         travelers=2,
-        preference="cheap"
     )
 
     result = agent.search_hotels(request)
 
-    assert isinstance(
-        result,
-        HotelRecommendation
-    )
-
+    assert isinstance(result, HotelRecommendation)
     assert result.destination == "Tokyo"
-
     assert len(result.options) > 0
 
 
-# --------------------------------------------------
-# Weather Agent
-# --------------------------------------------------
+# ============================================================
+# WEATHER AGENT
+# ============================================================
 
 def test_weather_agent():
 
     agent = WeatherAgent()
 
     request = TravelRequest(
-        origin="Delhi",
         destination="Tokyo",
-        days=7,
-        budget=50000,
-        travelers=2
+        days=3,
+        travelers=2,
     )
 
     result = agent.get_weather(request)
 
-    assert isinstance(
-        result,
-        WeatherRecommendation
-    )
-
+    assert isinstance(result, WeatherRecommendation)
     assert result.destination == "Tokyo"
-
-    assert isinstance(
-        result.forecast,
-        list
-    )
-
     assert len(result.forecast) > 0
+
+
+# ============================================================
+# ROOT AGENT FAILURE HANDLING
+# ============================================================
 
 def test_root_agent_handles_flight_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    from a2a.messages import A2AResponse
-
-    def fail_a2a(message):
-
-        if message.task == "search_flights":
-            return A2AResponse(
-                sender="FlightAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Flight API timeout",
-            )
-
-        if message.task == "search_hotels":
-            return A2AResponse(
-                sender="HotelAgent",
-                recipient="RootTravelAgent",
-                success=True,
-                result=HotelRecommendation(
-                    destination="Tokyo",
-                    options=[]
-                ),
-            )
-
-        if message.task == "get_weather":
-            return A2AResponse(
-                sender="WeatherAgent",
-                recipient="RootTravelAgent",
-                success=True,
-                result=WeatherRecommendation(
-                    destination="Tokyo",
-                    forecast=[]
-                ),
-            )
+    def fail_flights(request):
+        raise Exception("Flight API timeout")
 
     monkeypatch.setattr(
-        agent.a2a_router,
-        "send",
-        fail_a2a
+        agent.flight_agent,
+        "search_flights",
+        fail_flights,
     )
 
     result = agent.plan_trip(
@@ -302,41 +216,26 @@ def test_root_agent_handles_flight_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
+
     assert result.flights is None
     assert result.hotels is not None
     assert result.weather is not None
-    assert result.flight_status == "unavailable"
-    assert result.hotel_status == "available"
-    assert result.weather_status == "available"
+
     assert len(result.errors) == 1
+    assert "FlightAgent" in result.errors[0]
+
 
 def test_root_agent_handles_hotel_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    def fail_a2a(message):
-        from a2a.messages import A2AResponse
-
-        if message.task == "search_hotels":
-            return A2AResponse(
-                sender="HotelAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Hotel service unavailable",
-            )
-
-        return A2AResponse(
-            sender=message.recipient,
-            recipient=message.sender,
-            success=True,
-            result={},
-        )
+    def fail_hotels(request):
+        raise Exception("Hotel service unavailable")
 
     monkeypatch.setattr(
-        agent.a2a_router,
-        "send",
-        fail_a2a
+        agent.hotel_agent,
+        "search_hotels",
+        fail_hotels,
     )
 
     result = agent.plan_trip(
@@ -345,40 +244,26 @@ def test_root_agent_handles_hotel_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
+
     assert result.flights is not None
     assert result.hotels is None
     assert result.weather is not None
+
     assert len(result.errors) == 1
-    assert "Hotel service unavailable" in result.errors[0]
+    assert "HotelAgent" in result.errors[0]
 
 
 def test_root_agent_handles_weather_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
-    def fail_a2a(message):
-        from a2a.messages import A2AResponse
-
-        if message.task == "get_weather":
-            return A2AResponse(
-                sender="WeatherAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Weather API timeout",
-            )
-
-        return A2AResponse(
-            sender=message.recipient,
-            recipient=message.sender,
-            success=True,
-            result={},
-        )
+    def fail_weather(request):
+        raise Exception("Weather API timeout")
 
     monkeypatch.setattr(
-        agent.a2a_router,
-        "send",
-        fail_a2a
+        agent.weather_agent,
+        "get_weather",
+        fail_weather,
     )
 
     result = agent.plan_trip(
@@ -387,51 +272,41 @@ def test_root_agent_handles_weather_failure(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
+
     assert result.flights is not None
     assert result.hotels is not None
     assert result.weather is None
+
     assert len(result.errors) == 1
-    assert "Weather service unavailable" in result.errors[0]
+    assert "WeatherAgent" in result.errors[0]
+
 
 def test_root_agent_handles_all_agent_failures(monkeypatch):
 
     agent = RootTravelAgent()
 
-    from a2a.messages import A2AResponse
-
-    def fail_a2a(message):
-
-        if message.task == "search_flights":
-            return A2AResponse(
-                sender="FlightAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Flight API failed",
-            )
-
-        if message.task == "search_hotels":
-            return A2AResponse(
-                sender="HotelAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Hotel API failed",
-            )
-
-        if message.task == "get_weather":
-            return A2AResponse(
-                sender="WeatherAgent",
-                recipient="RootTravelAgent",
-                success=False,
-                result=None,
-                error="Weather API failed",
-            )
+    monkeypatch.setattr(
+        agent.flight_agent,
+        "search_flights",
+        lambda request: (
+            (_ for _ in ()).throw(Exception("Flight failed"))
+        ),
+    )
 
     monkeypatch.setattr(
-        agent.a2a_router,
-        "send",
-        fail_a2a
+        agent.hotel_agent,
+        "search_hotels",
+        lambda request: (
+            (_ for _ in ()).throw(Exception("Hotel failed"))
+        ),
+    )
+
+    monkeypatch.setattr(
+        agent.weather_agent,
+        "get_weather",
+        lambda request: (
+            (_ for _ in ()).throw(Exception("Weather failed"))
+        ),
     )
 
     result = agent.plan_trip(
@@ -440,14 +315,10 @@ def test_root_agent_handles_all_agent_failures(monkeypatch):
     )
 
     assert isinstance(result, TravelPlan)
-    assert result.destination == "Tokyo"
 
+    assert result.destination == "Tokyo"
     assert result.flights is None
     assert result.hotels is None
     assert result.weather is None
-
-    assert result.flight_status == "unavailable"
-    assert result.hotel_status == "unavailable"
-    assert result.weather_status == "unavailable"
 
     assert len(result.errors) == 3

@@ -270,6 +270,7 @@ Days: {request.days}
 Budget: {request.budget}
 Travelers: {request.travelers}
 Preference: {request.preference}
+Start Date: {request.start_date}
 
 New User Message:
 
@@ -312,6 +313,8 @@ New User Message:
 
             "travelers":
                 "👥 How many people are travelling?",
+
+            "start_date": "🗓️ When are you planning to travel?",
         }
 
         return "\n".join(
@@ -770,20 +773,24 @@ New User Message:
             # ====================================================
             # FOLLOW-UP MESSAGE
             # ====================================================
-            #
-            # NO GEMINI CALL HERE.
+            # Parse changes locally without Gemini.
+            # Do not call the specialized agents again for now.
             # ====================================================
 
-            missing_fields = self.get_missing_fields()
-
-            local_request = self.parse_follow_up_locally(
-                user_request,
-                missing_fields
+            local_request = self.extract_request_locally(
+                user_request
             )
 
-            self.session.update_request(
-                local_request
-            )
+            self.session.update_request(local_request)
+
+            self.determine_origin()
+
+            # Return the previous plan if the request was already complete.
+            if self.session.missing_fields == [] and hasattr(
+                self.session,
+                "last_plan"
+            ):
+                return self.session.last_plan
 
         # ========================================================
         # CURRENT REQUEST
@@ -962,7 +969,7 @@ New User Message:
         # FINAL TRAVEL PLAN
         # ========================================================
 
-        return TravelPlan(
+        plan = TravelPlan(
             destination=request.destination,
             itinerary=itinerary,
 
@@ -976,3 +983,7 @@ New User Message:
 
             errors=errors,
         )
+
+        self.session.last_plan = plan
+
+        return plan

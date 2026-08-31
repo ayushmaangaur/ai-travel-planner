@@ -36,6 +36,6 @@ Use exactly this format:
     "days": null,
     "budget": null,
     "travelers": null,
-    "preference": null
+    "preference": null,
 }
 """

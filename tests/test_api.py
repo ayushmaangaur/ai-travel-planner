@@ -311,3 +311,17 @@ def test_plan_trip_handles_unexpected_application_error(monkeypatch):
     data = response.json()
 
     assert data["detail"] == "Travel planning failed."
+
+def test_cors_headers():
+    response = client.options(
+        "/travel/plan",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "http://localhost:5173"
+    )

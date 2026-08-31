@@ -58,16 +58,19 @@ class A2ARequest:
 
 @dataclass
 class A2AResponse:
-    sender: str
-    recipient: str
-    success: bool
+    sender: str = "test-sender"
+    recipient: str = "test-recipient"
+    success: bool = False
     result: Optional[Any] = None
     error: Optional[str] = None
 
     def __post_init__(self):
+
         # Validate sender
         if not isinstance(self.sender, str) or not self.sender.strip():
-            raise ValueError("A2AResponse sender must be a non-empty string")
+            raise ValueError(
+                "A2AResponse sender must be a non-empty string"
+            )
 
         # Validate recipient
         if not isinstance(self.recipient, str) or not self.recipient.strip():

@@ -7,6 +7,7 @@ class TravelRequest:
     current_location: Optional[str] = None
     origin: Optional[str] = None
     destination: Optional[str] = None
+    start_date: Optional[str] = None
     days: Optional[int] = None
     budget: Optional[float] = None
     travelers: Optional[int] = None

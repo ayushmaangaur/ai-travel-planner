@@ -1,39 +1,28 @@
 from agents.root_agent import RootTravelAgent
 
 
-def test_complete_trip_uses_exactly_four_gemini_calls(monkeypatch):
+# ============================================================
+# COMPLETE REQUEST
+# ============================================================
+
+def test_complete_trip_does_not_need_gemini_for_request_parsing(
+    monkeypatch,
+):
 
     call_count = 0
 
     def fake_generate(self, prompt):
 
         nonlocal call_count
+
         call_count += 1
 
-        print(f"\n===== FAKE GEMINI CALL #{call_count} =====")
-        print(prompt[:500])
-        print("=========================================\n")
-
-        # Identify which type of prompt is being processed.
         if "Flight Agent" in prompt:
             return """
             {
                 "origin": "Delhi",
                 "destination": "Tokyo",
-                "options": [
-                    {
-                        "airline": "Test Airline",
-                        "flight_number": "TA123",
-                        "departure_airport": "DEL",
-                        "arrival_airport": "NRT",
-                        "departure_time": "10:00",
-                        "arrival_time": "20:00",
-                        "duration": "10h",
-                        "stops": 0,
-                        "price": 20000,
-                        "currency": "INR"
-                    }
-                ]
+                "options": []
             }
             """
 
@@ -41,16 +30,7 @@ def test_complete_trip_uses_exactly_four_gemini_calls(monkeypatch):
             return """
             {
                 "destination": "Tokyo",
-                "options": [
-                    {
-                        "name": "Test Hotel",
-                        "location": "Shinjuku",
-                        "rating": 4.0,
-                        "price_per_night": 4000,
-                        "currency": "INR",
-                        "amenities": ["Wi-Fi"]
-                    }
-                ]
+                "options": []
             }
             """
 
@@ -58,30 +38,10 @@ def test_complete_trip_uses_exactly_four_gemini_calls(monkeypatch):
             return """
             {
                 "destination": "Tokyo",
-                "forecast": [
-                    {
-                        "date": "Day 1",
-                        "condition": "Sunny",
-                        "temperature": "20°C",
-                        "precipitation": "10%"
-                    },
-                    {
-                        "date": "Day 2",
-                        "condition": "Cloudy",
-                        "temperature": "19°C",
-                        "precipitation": "20%"
-                    },
-                    {
-                        "date": "Day 3",
-                        "condition": "Sunny",
-                        "temperature": "21°C",
-                        "precipitation": "10%"
-                    }
-                ]
+                "forecast": []
             }
             """
 
-        # Initial TravelRequest parsing.
         return """
         {
             "current_location": "Delhi",
@@ -96,7 +56,7 @@ def test_complete_trip_uses_exactly_four_gemini_calls(monkeypatch):
 
     monkeypatch.setattr(
         "services.llm_service.LLMService.generate",
-        fake_generate
+        fake_generate,
     )
 
     agent = RootTravelAgent()
@@ -104,9 +64,82 @@ def test_complete_trip_uses_exactly_four_gemini_calls(monkeypatch):
     result = agent.plan_trip(
         "I am in Delhi and want to travel to Tokyo "
         "for 3 days with 2 people. "
-        "My budget is 60000 rupees and I prefer cheap flights."
+        "My budget is 60000 rupees."
     )
 
     assert result.destination == "Tokyo"
 
+    # The three specialized agents may use Gemini,
+    # but the initial request itself should be parsed locally.
     assert call_count == 3
+
+
+# ============================================================
+# FOLLOW-UP SHOULD NOT CALL GEMINI
+# ============================================================
+
+def test_follow_up_does_not_call_gemini(monkeypatch):
+
+    call_count = 0
+
+    def fake_generate(self, prompt):
+
+        nonlocal call_count
+        call_count += 1
+
+        if "Flight Agent" in prompt:
+            return """
+            {
+                "origin": "Delhi",
+                "destination": "Tokyo",
+                "options": []
+            }
+            """
+
+        if "Hotel Agent" in prompt:
+            return """
+            {
+                "destination": "Tokyo",
+                "options": []
+            }
+            """
+
+        if "Weather Agent" in prompt:
+            return """
+            {
+                "destination": "Tokyo",
+                "forecast": []
+            }
+            """
+
+        raise AssertionError(
+            "Gemini should not be used for complete local extraction"
+        )
+
+    monkeypatch.setattr(
+        "services.llm_service.LLMService.generate",
+        fake_generate,
+    )
+
+    agent = RootTravelAgent()
+
+    # First message.
+    result = agent.plan_trip(
+        "I am in Delhi and want to travel to Tokyo "
+        "for 7 days with 2 people. "
+        "My budget is 50000 rupees."
+    )
+
+    assert result.destination == "Tokyo"
+
+    calls_after_first_request = call_count
+
+    # Follow-up.
+    result = agent.plan_trip(
+        "Actually make it 5 days."
+    )
+
+    # Follow-up parsing should happen locally.
+    assert agent.session.request.days == 5
+
+    assert call_count == calls_after_first_request
