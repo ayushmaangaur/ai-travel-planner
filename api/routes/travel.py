@@ -20,17 +20,20 @@ travel_service = create_local_service()
 @router.post("/plan", response_model=TravelPlanResponse)
 def plan_trip(request: TravelRequestSchema):
 
-    prompt = f"""
-    Plan a trip using the following travel requirements:
+    if request.message:
+        prompt = request.message
+    else:
+        prompt = f"""
+        Plan a trip using the following travel requirements:
 
-    Current location: {request.current_location}
-    Origin: {request.origin}
-    Destination: {request.destination}
-    Days: {request.days}
-    Budget: {request.budget}
-    Travelers: {request.travelers}
-    Preference: {request.preference}
-    """
+        Current location: {request.current_location}
+        Origin: {request.origin}
+        Destination: {request.destination}
+        Days: {request.days}
+        Budget: {request.budget}
+        Travelers: {request.travelers}
+        Preference: {request.preference}
+        """
 
     try:
         result = travel_service.plan_trip(prompt)

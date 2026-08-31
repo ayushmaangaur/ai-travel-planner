@@ -2,7 +2,6 @@ from dataclasses import dataclass, field, fields
 
 from models.trip import TravelRequest
 
-
 @dataclass
 class ConversationSession:
 
