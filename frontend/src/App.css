@@ -6,101 +6,89 @@ body {
   margin: 0;
   font-family:
     Inter,
-    system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-
-  background: #181a1b;
-  color: #f1f1f1;
-}
-
-button,
-input {
-  font: inherit;
+  background: #111415;
+  color: #f2f2f2;
 }
 
 .app {
   min-height: 100vh;
-  background: #181a1b;
-}
-
-
-/* HEADER */
-
-.header {
-  height: 90px;
-  border-bottom: 1px solid #303234;
+  background: #111415;
   display: flex;
-  align-items: center;
-  padding: 0 32px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.brand-icon {
-  width: 38px;
-  height: 38px;
-
-  display: flex;
-  align-items: center;
   justify-content: center;
-
-  border-radius: 12px;
-
-  background: #2b2e31;
-
-  font-size: 20px;
 }
-
-.brand h1 {
-  margin: 0;
-
-  font-size: 20px;
-  font-weight: 650;
-}
-
-.brand p {
-  margin: 3px 0 0;
-
-  color: #96999d;
-
-  font-size: 13px;
-}
-
-
-/* CHAT */
 
 .chat-container {
-  width: min(900px, calc(100% - 32px));
-
-  margin: 0 auto;
-
+  width: 100%;
+  max-width: 1500px;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-
-  min-height: calc(100vh - 90px);
 }
+
+/* --------------------------------------------------
+   HEADER
+-------------------------------------------------- */
+
+.header {
+  height: 165px;
+  padding: 45px 6%;
+  border-bottom: 1px solid #303334;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -1px;
+}
+
+.header p {
+  margin: 12px 0 0;
+  color: #96999b;
+  font-size: 18px;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #aaa;
+  font-size: 17px;
+  margin-top: 10px;
+}
+
+.status span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #19b45b;
+  display: block;
+  box-shadow: 0 0 10px rgba(25, 180, 91, 0.35);
+}
+
+/* --------------------------------------------------
+   CHAT
+-------------------------------------------------- */
 
 .messages {
   flex: 1;
-
-  padding: 48px 0 140px;
+  padding: 45px 6% 80px;
+  overflow-y: auto;
 }
-
-
-/* MESSAGE */
 
 .message-row {
   display: flex;
-
-  gap: 12px;
-
+  align-items: flex-start;
+  gap: 18px;
   margin-bottom: 28px;
 }
 
@@ -108,67 +96,378 @@ input {
   justify-content: flex-end;
 }
 
+.message-row.user .avatar {
+  order: 2;
+}
+
+.message-row.user .message-wrapper {
+  order: 1;
+}
+
+/* --------------------------------------------------
+   AVATAR
+-------------------------------------------------- */
+
 .avatar {
+  width: 52px;
+  height: 52px;
+
   flex-shrink: 0;
 
-  width: 32px;
-  height: 32px;
-
   border-radius: 50%;
-
-  background: #2b2e31;
+  background: #1c2021;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  font-size: 15px;
+  font-size: 25px;
 }
 
-.message-bubble {
-  max-width: 650px;
+/* --------------------------------------------------
+   NORMAL MESSAGE
+-------------------------------------------------- */
 
-  padding: 14px 18px;
+.message-wrapper {
+  max-width: 850px;
+}
 
+.message {
+  padding: 20px 25px;
   border-radius: 18px;
+  background: #1c2021;
 
-  background: #242628;
-
-  color: #e9e9e9;
-
+  color: #e8e8e8;
+  font-size: 18px;
   line-height: 1.55;
+}
 
+.message.user {
+  background: #1748b5;
+}
+
+.message.plan {
+  font-size: 18px;
+}
+
+/* --------------------------------------------------
+   TRIP BUILDER
+-------------------------------------------------- */
+
+.trip-builder {
+  width: min(900px, 100%);
+  padding: 28px;
+
+  border-radius: 24px;
+
+  background: #191d1e;
+  border: 1px solid #343839;
+
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.builder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  margin-bottom: 25px;
+}
+
+.builder-header h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.builder-header p {
+  margin: 7px 0 0;
+  color: #929697;
   font-size: 15px;
 }
 
-.user .message-bubble {
-  background: #315fd4;
+.builder-icon {
+  width: 42px;
+  height: 42px;
 
-  border-bottom-right-radius: 5px;
+  border-radius: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #222728;
+
+  font-size: 20px;
 }
 
-.assistant .message-bubble {
-  border-bottom-left-radius: 5px;
+/* --------------------------------------------------
+   FIELD GRID
+-------------------------------------------------- */
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
 }
 
+.field-card {
+  padding: 17px 18px;
 
-/* TYPING */
+  border-radius: 17px;
+
+  background: #222627;
+  border: 1px solid #343839;
+
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+
+.field-card:hover {
+  border-color: #515657;
+  transform: translateY(-1px);
+}
+
+.field-card:focus-within {
+  border-color: #4c6fd6;
+}
+
+.field-card label {
+  display: block;
+
+  margin-bottom: 9px;
+
+  color: #b9bcbd;
+
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.field-card input,
+.field-card select {
+  width: 100%;
+
+  border: none;
+  outline: none;
+
+  background: transparent;
+
+  color: #f1f1f1;
+
+  font-size: 17px;
+
+  font-family: inherit;
+}
+
+.field-card input::placeholder {
+  color: #696e70;
+}
+
+.field-card select {
+  cursor: pointer;
+}
+
+.field-card select option {
+  background: #222627;
+  color: white;
+}
+
+.input-with-unit {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.input-with-unit span {
+  color: #888d8f;
+  font-size: 15px;
+}
+
+.input-with-unit input {
+  flex: 1;
+}
+
+/* Chrome number arrows */
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* --------------------------------------------------
+   CHECKBOX
+-------------------------------------------------- */
+
+.checkbox-label {
+  display: flex !important;
+  align-items: center;
+  gap: 7px;
+
+  margin-top: 10px;
+  margin-bottom: 0 !important;
+
+  color: #777d7f !important;
+  font-size: 11px !important;
+
+  cursor: pointer;
+}
+
+.checkbox-label input {
+  width: auto;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------
+   PLAN BUTTON
+-------------------------------------------------- */
+
+.plan-button {
+  width: 100%;
+
+  margin-top: 18px;
+  padding: 17px 22px;
+
+  border: none;
+  border-radius: 15px;
+
+  background: #2053c5;
+  color: white;
+
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  transition:
+    transform 0.2s,
+    background 0.2s,
+    opacity 0.2s;
+}
+
+.plan-button:hover:not(:disabled) {
+  background: #2860d7;
+  transform: translateY(-1px);
+}
+
+.plan-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.required-hint {
+  margin: 10px 0 0;
+
+  text-align: center;
+
+  color: #686d6f;
+  font-size: 12px;
+}
+
+/* --------------------------------------------------
+   SUBMITTED SUMMARY
+-------------------------------------------------- */
+
+.submitted-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  margin-top: 15px;
+}
+
+.submitted-summary span {
+  padding: 7px 11px;
+
+  border-radius: 10px;
+
+  background: #262a2b;
+
+  color: #bfc2c3;
+
+  font-size: 13px;
+}
+
+/* --------------------------------------------------
+   RESULT CARDS
+-------------------------------------------------- */
+
+.plan-details {
+  margin-top: 14px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.result-card {
+  padding: 18px;
+
+  border-radius: 16px;
+
+  background: #191d1e;
+  border: 1px solid #303536;
+}
+
+.result-card-title {
+  margin-bottom: 13px;
+
+  font-size: 15px;
+  font-weight: 600;
+  color: #e5e5e5;
+}
+
+.result-item {
+  padding: 12px 0;
+
+  border-top: 1px solid #2c3031;
+
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  color: #929697;
+
+  font-size: 14px;
+}
+
+.result-item:first-of-type {
+  border-top: none;
+}
+
+.result-item strong {
+  color: #e3e3e3;
+}
+
+/* --------------------------------------------------
+   TYPING
+-------------------------------------------------- */
 
 .typing {
   display: flex;
-  gap: 5px;
   align-items: center;
+  gap: 5px;
+
+  width: fit-content;
 }
 
 .typing span {
-  width: 6px;
-  height: 6px;
-
-  background: #9a9a9a;
+  width: 7px;
+  height: 7px;
 
   border-radius: 50%;
 
-  animation: typing 1.2s infinite;
+  background: #777;
+
+  animation: typing 1.2s infinite ease-in-out;
 }
 
 .typing span:nth-child(2) {
@@ -183,532 +482,87 @@ input {
   0%,
   60%,
   100% {
-    opacity: 0.3;
     transform: translateY(0);
+    opacity: 0.4;
   }
 
   30% {
+    transform: translateY(-4px);
     opacity: 1;
-    transform: translateY(-3px);
   }
 }
 
+/* --------------------------------------------------
+   NEW TRIP
+-------------------------------------------------- */
 
-/* TRAVEL PLAN */
+.new-trip-button {
+  align-self: center;
 
-.travel-response {
-  margin-bottom: 35px;
-}
+  margin: 20px auto;
+  padding: 13px 22px;
 
-.plan-content {
-  margin-left: 44px;
+  border: 1px solid #3a3e3f;
+  border-radius: 13px;
 
-  max-width: 760px;
-}
+  background: #1d2122;
+  color: #d4d6d6;
 
-
-/* STATUS */
-
-.status-card {
-  display: grid;
-
-  grid-template-columns: repeat(3, 1fr);
-
-  gap: 1px;
-
-  overflow: hidden;
-
-  margin-bottom: 18px;
-
-  border: 1px solid #303234;
-
-  border-radius: 14px;
-
-  background: #303234;
-}
-
-.status-item {
-  background: #202223;
-
-  padding: 16px;
-
-  display: flex;
-
-  align-items: center;
-
-  gap: 12px;
-}
-
-.status-item > span {
-  font-size: 20px;
-}
-
-.status-item small {
-  display: block;
-
-  color: #85898d;
-
-  font-size: 11px;
-
-  text-transform: uppercase;
-
-  letter-spacing: 0.5px;
-}
-
-.status-item strong {
-  display: block;
-
-  margin-top: 3px;
-
-  font-size: 13px;
-
-  text-transform: capitalize;
-}
-
-
-/* CARDS */
-
-.plan-card {
-  background: #202223;
-
-  border: 1px solid #303234;
-
-  border-radius: 16px;
-
-  padding: 22px;
-
-  margin-bottom: 18px;
-}
-
-.card-title {
-  display: flex;
-
-  align-items: center;
-
-  gap: 10px;
-
-  margin-bottom: 20px;
-}
-
-.card-title span {
-  font-size: 19px;
-}
-
-.card-title h3 {
-  margin: 0;
-
-  font-size: 16px;
-}
-
-
-/* ITINERARY */
-
-.itinerary {
-  display: flex;
-
-  flex-direction: column;
-}
-
-.itinerary-day {
-  display: flex;
-
-  gap: 16px;
-
-  padding: 16px 0;
-
-  border-bottom: 1px solid #303234;
-}
-
-.itinerary-day:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.itinerary-day:first-child {
-  padding-top: 0;
-}
-
-.day-number {
-  flex-shrink: 0;
-
-  width: 32px;
-  height: 32px;
-
-  border-radius: 50%;
-
-  background: #2c2f32;
-
-  display: flex;
-
-  align-items: center;
-  justify-content: center;
-
-  font-size: 13px;
-
-  color: #b8bbc0;
-}
-
-.day-content strong {
-  font-size: 13px;
-}
-
-.day-content p {
-  margin: 5px 0 0;
-
-  color: #b3b5b8;
-
+  font-family: inherit;
   font-size: 14px;
-
-  line-height: 1.5;
-}
-
-
-/* OPTIONS */
-
-.options {
-  display: flex;
-
-  flex-direction: column;
-}
-
-.option {
-  display: flex;
-
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 20px;
-
-  padding: 17px 0;
-
-  border-bottom: 1px solid #303234;
-}
-
-.option:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.option:first-child {
-  padding-top: 0;
-}
-
-.option strong {
-  font-size: 14px;
-}
-
-.option p {
-  margin: 5px 0;
-
-  color: #a5a8ab;
-
-  font-size: 13px;
-}
-
-.option small {
-  color: #85898d;
-
-  font-size: 12px;
-}
-
-.muted {
-  color: #777b7f;
-}
-
-.price {
-  white-space: nowrap;
-
-  color: #f0f0f0;
-
-  font-size: 15px !important;
-}
-
-.price small {
-  margin-left: 3px;
-}
-
-
-/* ROUTE */
-
-.route {
-  display: flex;
-
-  align-items: center;
-
-  gap: 14px;
-
-  margin: -5px 0 20px;
-
-  color: #b6b9bd;
-
-  font-size: 13px;
-}
-
-.route span {
-  color: #777b80;
-
-  font-size: 17px;
-}
-
-
-/* AMENITIES */
-
-.amenities {
-  display: flex;
-
-  flex-wrap: wrap;
-
-  gap: 6px;
-
-  margin-top: 10px;
-}
-
-.amenities span {
-  padding: 5px 8px;
-
-  border-radius: 6px;
-
-  background: #2a2d30;
-
-  color: #aeb1b5;
-
-  font-size: 11px;
-}
-
-
-/* WEATHER */
-
-.weather-grid {
-  display: grid;
-
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(140px, 1fr)
-  );
-
-  gap: 10px;
-}
-
-.weather-day {
-  padding: 15px;
-
-  background: #292c2f;
-
-  border-radius: 10px;
-}
-
-.weather-day strong {
-  font-size: 12px;
-}
-
-.weather-condition {
-  margin-top: 12px;
-
-  color: #aeb1b5;
-
-  font-size: 12px;
-}
-
-.temperature {
-  margin: 7px 0;
-
-  font-size: 18px;
-
-  font-weight: 600;
-}
-
-.weather-day small {
-  color: #85898d;
-
-  font-size: 11px;
-}
-
-
-/* WARNING */
-
-.warning-card {
-  padding: 17px;
-
-  margin-bottom: 18px;
-
-  border: 1px solid #5a4c2e;
-
-  border-radius: 12px;
-
-  background: #29251c;
-
-  color: #d5c39a;
-
-  font-size: 13px;
-}
-
-.warning-card strong {
-  display: block;
-
-  margin-bottom: 8px;
-}
-
-.warning-card p {
-  margin: 5px 0;
-
-  color: #aaa084;
-
-  line-height: 1.4;
-}
-
-
-/* ERROR */
-
-.error-bubble {
-  color: #e6aaaa;
-
-  border: 1px solid #573333;
-}
-
-
-/* COMPOSER */
-
-.composer {
-  position: fixed;
-
-  bottom: 24px;
-
-  left: 50%;
-
-  transform: translateX(-50%);
-
-  width: min(820px, calc(100% - 32px));
-
-  display: flex;
-
-  gap: 10px;
-
-  padding: 7px;
-
-  background: #242628;
-
-  border: 1px solid #3a3c3f;
-
-  border-radius: 15px;
-
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.35);
-}
-
-.composer input {
-  flex: 1;
-
-  min-width: 0;
-
-  border: none;
-
-  outline: none;
-
-  background: transparent;
-
-  color: #f1f1f1;
-
-  padding: 12px 14px;
-
-  font-size: 14px;
-}
-
-.composer input::placeholder {
-  color: #74777a;
-}
-
-.composer button {
-  border: none;
-
-  border-radius: 10px;
-
-  padding: 0 22px;
-
-  background: #315fd4;
-
-  color: white;
 
   cursor: pointer;
-
-  font-size: 14px;
-
-  transition: opacity 0.2s;
 }
 
-.composer button:hover {
-  opacity: 0.88;
+.new-trip-button:hover {
+  background: #25292a;
 }
 
-.composer button:disabled {
-  opacity: 0.45;
+/* --------------------------------------------------
+   RESPONSIVE
+-------------------------------------------------- */
 
-  cursor: not-allowed;
-}
-
-
-/* DISCLAIMER */
-
-.disclaimer {
-  position: fixed;
-
-  bottom: 2px;
-
-  left: 50%;
-
-  transform: translateX(-50%);
-
-  color: #5f6265;
-
-  font-size: 10px;
-
-  white-space: nowrap;
-}
-
-
-/* MOBILE */
-
-@media (max-width: 650px) {
+@media (max-width: 700px) {
   .header {
-    height: 70px;
-
-    padding: 0 18px;
+    height: auto;
+    padding: 30px 20px;
   }
 
-  .brand h1 {
-    font-size: 17px;
+  .header h1 {
+    font-size: 25px;
   }
 
-  .brand p {
-    font-size: 11px;
+  .header p {
+    font-size: 14px;
+  }
+
+  .status {
+    font-size: 13px;
   }
 
   .messages {
-    padding-top: 30px;
+    padding: 25px 15px 50px;
   }
 
-  .plan-content {
-    margin-left: 0;
-
-    margin-top: 12px;
-  }
-
-  .status-card {
+  .field-grid {
     grid-template-columns: 1fr;
   }
 
-  .message-bubble {
-    max-width: 85%;
+  .trip-builder {
+    padding: 20px;
   }
 
-  .plan-card {
-    padding: 17px;
+  .avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
   }
 
-  .weather-grid {
-    grid-template-columns: 1fr 1fr;
+  .message-row {
+    gap: 10px;
   }
 
-  .disclaimer {
-    display: none;
+  .message {
+    font-size: 15px;
   }
 }

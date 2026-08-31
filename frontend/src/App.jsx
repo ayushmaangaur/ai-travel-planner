@@ -1,77 +1,208 @@
 import { useState } from "react";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
-
 function App() {
-  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({
+    current_location: "",
+    origin: "",
+    destination: "",
+    days: "",
+    budget: "",
+    travelers: "",
+    preference: "",
+    start_date: "",
+  });
+
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      type: "welcome",
+      type: "text",
       content:
-        "Hi! I'm your AI travel assistant. Tell me where you'd like to go, how long you want to stay, your budget, or anything else you have in mind.",
+        "Hi! 👋 I'm your AI Travel Planner. Tell me a few details about your trip and I'll build the plan for you.",
     },
   ]);
 
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  const updateField = (field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-    const userMessage = message.trim();
+  const handleSameOrigin = (checked) => {
+    setForm((prev) => ({
+      ...prev,
+      origin: checked ? prev.current_location : "",
+    }));
+  };
 
-    if (!userMessage || loading) {
-      return;
+  const handleCurrentLocationChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      current_location: value,
+    }));
+  };
+
+  const isFormComplete =
+    form.current_location.trim() &&
+    form.origin.trim() &&
+    form.destination.trim() &&
+    form.days &&
+    form.budget &&
+    form.travelers &&
+    form.start_date;
+
+  const formatTravelPlan = (plan) => {
+    let text = "";
+
+    if (plan.destination) {
+      text += `✈️ Your trip to ${plan.destination} is ready!\n\n`;
     }
 
-    setMessage("");
+    if (plan.itinerary?.length) {
+      text += "🗓️ Itinerary\n\n";
 
-    setMessages((previous) => [
-      ...previous,
+      plan.itinerary.forEach((day, index) => {
+        text += `${index + 1}. ${day}\n`;
+      });
+
+      text += "\n";
+    }
+
+    text += "✈️ Flights: ";
+    text +=
+      plan.flight_status === "available"
+        ? "Available\n"
+        : "Currently unavailable\n";
+
+    text += "🏨 Hotels: ";
+    text +=
+      plan.hotel_status === "available"
+        ? "Available\n"
+        : "Currently unavailable\n";
+
+    text += "🌤️ Weather: ";
+    text +=
+      plan.weather_status === "available"
+        ? "Available\n"
+        : "Currently unavailable\n";
+
+    if (plan.errors?.length) {
+      text +=
+        "\n⚠️ Some services were unavailable, but I've still prepared the available parts of your trip.";
+    }
+
+    return text;
+  };
+
+  const planTrip = async () => {
+    if (!isFormComplete || loading) return;
+
+    setSubmitted(true);
+    setLoading(true);
+
+    setMessages((prev) => [
+      ...prev,
       {
         role: "user",
-        content: userMessage,
+        type: "summary",
+        content: "Build my trip",
+        form: { ...form },
+      },
+      {
+        role: "assistant",
+        type: "text",
+        content:
+          "Perfect ✈️ I have everything I need. Let me build your trip...",
       },
     ]);
 
-    setLoading(true);
-
     try {
-      const response = await fetch(`${API_URL}/travel/plan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: userMessage,
-        }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:8000/travel/plan",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            current_location: form.current_location,
+            origin: form.origin,
+            destination: form.destination,
+            days: Number(form.days),
+            budget: Number(form.budget),
+            travelers: Number(form.travelers),
+            preference: form.preference || null,
+            start_date: form.start_date,
+          }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
+        throw new Error("Server error");
       }
 
       const data = await response.json();
 
-      setMessages((previous) => [
-        ...previous,
-        {
-          role: "assistant",
-          type: "travel-plan",
-          plan: data,
-        },
-      ]);
+      /*
+       * Support both possible backend response formats:
+       *
+       * {
+       *   type: "plan",
+       *   plan: {...}
+       * }
+       *
+       * OR
+       *
+       * {
+       *   destination: "...",
+       *   itinerary: [...]
+       * }
+       */
+
+      let plan = null;
+
+      if (data.type === "plan" && data.plan) {
+        plan = data.plan;
+      } else if (data.destination || data.itinerary) {
+        plan = data;
+      }
+
+      if (data.type === "message") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            type: "text",
+            content: data.message,
+          },
+        ]);
+      } else if (plan) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            type: "plan",
+            content: formatTravelPlan(plan),
+            plan: plan,
+          },
+        ]);
+      } else {
+        throw new Error("Unexpected server response");
+      }
     } catch (error) {
       console.error(error);
 
-      setMessages((previous) => [
-        ...previous,
+      setMessages((prev) => [
+        ...prev,
         {
           role: "assistant",
-          type: "error",
+          type: "text",
           content:
-            "Sorry, I couldn't connect to the travel planner. Please make sure the backend is running and try again.",
+            "Sorry, something went wrong while creating your trip. Please make sure the FastAPI server is running.",
         },
       ]);
     } finally {
@@ -79,334 +210,430 @@ function App() {
     }
   };
 
+  const resetPlanner = () => {
+    setForm({
+      current_location: "",
+      origin: "",
+      destination: "",
+      days: "",
+      budget: "",
+      travelers: "",
+      preference: "",
+      start_date: "",
+    });
+
+    setSubmitted(false);
+
+    setMessages([
+      {
+        role: "assistant",
+        type: "text",
+        content:
+          "Let's plan another adventure ✈️ Fill in your trip details below.",
+      },
+    ]);
+  };
+
   return (
     <div className="app">
-      <header className="header">
-        <div className="brand">
-          <div className="brand-icon">✦</div>
+      <div className="chat-container">
 
+        {/* HEADER */}
+        <header className="header">
           <div>
-            <h1>AI Travel Planner</h1>
-            <p>Your personal AI travel assistant</p>
+            <h1>Travel Planner</h1>
+            <p>Your AI trip planning assistant</p>
           </div>
-        </div>
-      </header>
 
-      <main className="chat-container">
-        <div className="messages">
-          {messages.map((item, index) => {
-            if (item.type === "travel-plan") {
-              return (
-                <TravelPlan
-                  key={index}
-                  plan={item.plan}
-                />
-              );
-            }
+          <div className="status">
+            <span></span>
+            AI Online
+          </div>
+        </header>
 
-            return (
-              <div
-                key={index}
-                className={`message-row ${item.role}`}
-              >
-                {item.role === "assistant" && (
-                  <div className="avatar">✦</div>
+        {/* CHAT */}
+        <main className="messages">
+
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`message-row ${message.role}`}
+            >
+              <div className="avatar">
+                {message.role === "assistant" ? "✈️" : "👤"}
+              </div>
+
+              <div className="message-wrapper">
+
+                <div className={`message ${message.type}`}>
+
+                  {message.type === "summary" ? (
+                    <>
+                      <strong>Trip details submitted ✈️</strong>
+
+                      <div className="submitted-summary">
+                        <span>📍 {message.form.current_location}</span>
+                        <span>🌍 {message.form.destination}</span>
+                        <span>📅 {message.form.days} days</span>
+                        <span>👥 {message.form.travelers} travellers</span>
+                        <span>💰 ₹{message.form.budget}</span>
+                      </div>
+                    </>
+                  ) : (
+                    message.content.split("\n").map((line, i) => (
+                      <div key={i}>
+                        {line || <br />}
+                      </div>
+                    ))
+                  )}
+
+                </div>
+
+                {/* Detailed plan cards */}
+                {message.type === "plan" && message.plan && (
+                  <div className="plan-details">
+
+                    {message.plan.flights?.options?.length > 0 && (
+                      <div className="result-card">
+                        <div className="result-card-title">
+                          ✈️ Flight options
+                        </div>
+
+                        {message.plan.flights.options.map(
+                          (flight, i) => (
+                            <div
+                              className="result-item"
+                              key={i}
+                            >
+                              <strong>
+                                {flight.airline}
+                              </strong>
+
+                              <span>
+                                {flight.departure_airport} →{" "}
+                                {flight.arrival_airport}
+                              </span>
+
+                              <span>
+                                ₹{flight.price}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {message.plan.hotels?.options?.length > 0 && (
+                      <div className="result-card">
+                        <div className="result-card-title">
+                          🏨 Hotel options
+                        </div>
+
+                        {message.plan.hotels.options.map(
+                          (hotel, i) => (
+                            <div
+                              className="result-item"
+                              key={i}
+                            >
+                              <strong>{hotel.name}</strong>
+
+                              <span>
+                                {hotel.location}
+                              </span>
+
+                              <span>
+                                ⭐ {hotel.rating}
+                              </span>
+
+                              <span>
+                                ₹{hotel.price_per_night}/night
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                    {message.plan.weather?.forecast?.length > 0 && (
+                      <div className="result-card">
+                        <div className="result-card-title">
+                          🌤️ Weather
+                        </div>
+
+                        {message.plan.weather.forecast.map(
+                          (day, i) => (
+                            <div
+                              className="result-item"
+                              key={i}
+                            >
+                              <strong>{day.date}</strong>
+                              <span>{day.condition}</span>
+                              <span>
+                                {day.temperature}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+
+                  </div>
                 )}
 
-                <div
-                  className={`message-bubble ${
-                    item.type === "error"
-                      ? "error-bubble"
-                      : ""
-                  }`}
-                >
-                  {item.content}
-                </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
 
+          {/* LOADING */}
           {loading && (
             <div className="message-row assistant">
-              <div className="avatar">✦</div>
+              <div className="avatar">✈️</div>
 
-              <div className="message-bubble typing">
+              <div className="message typing">
                 <span></span>
                 <span></span>
                 <span></span>
               </div>
             </div>
           )}
-        </div>
 
-        <form
-          className="composer"
-          onSubmit={handleSubmit}
-        >
-          <input
-            type="text"
-            value={message}
-            onChange={(event) =>
-              setMessage(event.target.value)
-            }
-            placeholder="Tell me about your trip..."
-            disabled={loading}
-          />
+          {/* TRIP BUILDER PANEL */}
+          {!submitted && (
+            <div className="message-row assistant">
 
-          <button
-            type="submit"
-            disabled={loading || !message.trim()}
-          >
-            {loading ? "..." : "Send"}
-          </button>
-        </form>
+              <div className="avatar">✈️</div>
 
-        <p className="disclaimer">
-          AI-generated travel recommendations. Always verify
-          important travel information before booking.
-        </p>
-      </main>
-    </div>
-  );
-}
+              <div className="trip-builder">
 
+                <div className="builder-header">
+                  <div>
+                    <h2>Plan your trip</h2>
+                    <p>
+                      Fill in the details and I'll handle the rest.
+                    </p>
+                  </div>
 
-function TravelPlan({ plan }) {
-  return (
-    <div className="travel-response">
-      <div className="message-row assistant">
-        <div className="avatar">✦</div>
-
-        <div className="message-bubble">
-          Here's your travel plan for{" "}
-          <strong>{plan.destination}</strong> ✈️
-        </div>
-      </div>
-
-      <div className="plan-content">
-
-        <div className="status-card">
-          <div className="status-item">
-            <span>✈️</span>
-            <div>
-              <small>Flights</small>
-              <strong>{plan.flight_status}</strong>
-            </div>
-          </div>
-
-          <div className="status-item">
-            <span>🏨</span>
-            <div>
-              <small>Hotels</small>
-              <strong>{plan.hotel_status}</strong>
-            </div>
-          </div>
-
-          <div className="status-item">
-            <span>🌤️</span>
-            <div>
-              <small>Weather</small>
-              <strong>{plan.weather_status}</strong>
-            </div>
-          </div>
-        </div>
-
-
-        <section className="plan-card">
-          <div className="card-title">
-            <span>📅</span>
-            <h3>Your itinerary</h3>
-          </div>
-
-          <div className="itinerary">
-            {plan.itinerary?.map((day, index) => (
-              <div
-                className="itinerary-day"
-                key={index}
-              >
-                <div className="day-number">
-                  {index + 1}
+                  <span className="builder-icon">✨</span>
                 </div>
 
-                <div className="day-content">
-                  <strong>
-                    Day {index + 1}
-                  </strong>
+                <div className="field-grid">
 
-                  <p>{cleanDay(day)}</p>
+                  {/* CURRENT LOCATION */}
+                  <div className="field-card">
+                    <label>📍 Current location</label>
+
+                    <input
+                      type="text"
+                      placeholder="Mumbai"
+                      value={form.current_location}
+                      onChange={(e) =>
+                        handleCurrentLocationChange(
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* ORIGIN */}
+                  <div className="field-card">
+                    <label>🛫 Starting from</label>
+
+                    <input
+                      type="text"
+                      placeholder="Mumbai"
+                      value={form.origin}
+                      onChange={(e) =>
+                        updateField(
+                          "origin",
+                          e.target.value
+                        )
+                      }
+                    />
+
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        onChange={(e) =>
+                          handleSameOrigin(
+                            e.target.checked
+                          )
+                        }
+                      />
+                      Same as current location
+                    </label>
+                  </div>
+
+                  {/* DESTINATION */}
+                  <div className="field-card destination-card">
+                    <label>🌍 Destination</label>
+
+                    <input
+                      type="text"
+                      placeholder="Tokyo"
+                      value={form.destination}
+                      onChange={(e) =>
+                        updateField(
+                          "destination",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* DAYS */}
+                  <div className="field-card">
+                    <label>📅 Duration</label>
+
+                    <div className="input-with-unit">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="7"
+                        value={form.days}
+                        onChange={(e) =>
+                          updateField(
+                            "days",
+                            e.target.value
+                          )
+                        }
+                      />
+                      <span>days</span>
+                    </div>
+                  </div>
+
+                  {/* TRAVELLERS */}
+                  <div className="field-card">
+                    <label>👥 Travellers</label>
+
+                    <div className="input-with-unit">
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="2"
+                        value={form.travelers}
+                        onChange={(e) =>
+                          updateField(
+                            "travelers",
+                            e.target.value
+                          )
+                        }
+                      />
+                      <span>people</span>
+                    </div>
+                  </div>
+
+                  {/* BUDGET */}
+                  <div className="field-card">
+                    <label>💰 Budget</label>
+
+                    <div className="input-with-unit">
+                      <span>₹</span>
+
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="50000"
+                        value={form.budget}
+                        onChange={(e) =>
+                          updateField(
+                            "budget",
+                            e.target.value
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {/* DATE */}
+                  <div className="field-card">
+                    <label>🗓️ Travel date</label>
+
+                    <input
+                      type="date"
+                      value={form.start_date}
+                      onChange={(e) =>
+                        updateField(
+                          "start_date",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  {/* PREFERENCE */}
+                  <div className="field-card">
+                    <label>✨ Preference</label>
+
+                    <select
+                      value={form.preference}
+                      onChange={(e) =>
+                        updateField(
+                          "preference",
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="">
+                        Choose a style
+                      </option>
+                      <option value="budget-friendly">
+                        💸 Budget-friendly
+                      </option>
+                      <option value="balanced">
+                        ⚖️ Balanced
+                      </option>
+                      <option value="luxury">
+                        💎 Luxury
+                      </option>
+                      <option value="adventure">
+                        🏔️ Adventure
+                      </option>
+                      <option value="relaxed">
+                        🌴 Relaxed
+                      </option>
+                      <option value="cheap flights">
+                        ✈️ Cheap flights
+                      </option>
+                    </select>
+                  </div>
+
                 </div>
+
+                <button
+                  className="plan-button"
+                  onClick={planTrip}
+                  disabled={!isFormComplete || loading}
+                >
+                  <span>✈️</span>
+                  Plan my trip
+                  <span>→</span>
+                </button>
+
+                {!isFormComplete && (
+                  <p className="required-hint">
+                    Fill in the required details to continue
+                  </p>
+                )}
+
               </div>
-            ))}
-          </div>
-        </section>
-
-
-        {plan.flights && (
-          <section className="plan-card">
-            <div className="card-title">
-              <span>✈️</span>
-              <h3>Flights</h3>
             </div>
+          )}
 
-            <p className="route">
-              {plan.flights.origin}
-              <span>→</span>
-              {plan.flights.destination}
-            </p>
+          {/* NEW TRIP */}
+          {submitted && !loading && (
+            <button
+              className="new-trip-button"
+              onClick={resetPlanner}
+            >
+              ✨ Plan another trip
+            </button>
+          )}
 
-            <div className="options">
-              {plan.flights.options?.map(
-                (flight, index) => (
-                  <div
-                    className="option"
-                    key={index}
-                  >
-                    <div>
-                      <strong>
-                        {flight.airline}
-                      </strong>
-
-                      {flight.flight_number && (
-                        <span className="muted">
-                          {" "}
-                          • {flight.flight_number}
-                        </span>
-                      )}
-
-                      <p>
-                        {flight.departure_airport} →{" "}
-                        {flight.arrival_airport}
-                      </p>
-
-                      <small>
-                        {flight.departure_time} →{" "}
-                        {flight.arrival_time}
-                      </small>
-                    </div>
-
-                    <strong className="price">
-                      ₹{flight.price}
-                    </strong>
-                  </div>
-                )
-              )}
-            </div>
-          </section>
-        )}
-
-
-        {plan.hotels && (
-          <section className="plan-card">
-            <div className="card-title">
-              <span>🏨</span>
-              <h3>Hotels</h3>
-            </div>
-
-            <div className="options">
-              {plan.hotels.options?.map(
-                (hotel, index) => (
-                  <div
-                    className="option hotel"
-                    key={index}
-                  >
-                    <div>
-                      <strong>
-                        {hotel.name}
-                      </strong>
-
-                      <p>
-                        📍 {hotel.location}
-                      </p>
-
-                      <small>
-                        ⭐ {hotel.rating}
-                      </small>
-
-                      {hotel.amenities?.length > 0 && (
-                        <div className="amenities">
-                          {hotel.amenities.map(
-                            (amenity, i) => (
-                              <span key={i}>
-                                {amenity}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <strong className="price">
-                      ₹{hotel.price_per_night}
-                      <small>/night</small>
-                    </strong>
-                  </div>
-                )
-              )}
-            </div>
-          </section>
-        )}
-
-
-        {plan.weather && (
-          <section className="plan-card">
-            <div className="card-title">
-              <span>🌤️</span>
-              <h3>Weather</h3>
-            </div>
-
-            <div className="weather-grid">
-              {plan.weather.forecast?.map(
-                (day, index) => (
-                  <div
-                    className="weather-day"
-                    key={index}
-                  >
-                    <strong>{day.date}</strong>
-
-                    <div className="weather-condition">
-                      {day.condition}
-                    </div>
-
-                    <div className="temperature">
-                      {day.temperature}
-                    </div>
-
-                    <small>
-                      🌧️ {day.precipitation}
-                    </small>
-                  </div>
-                )
-              )}
-            </div>
-          </section>
-        )}
-
-
-        {plan.errors?.length > 0 && (
-          <section className="warning-card">
-            <strong>
-              Some travel services were unavailable
-            </strong>
-
-            {plan.errors.map((error, index) => (
-              <p key={index}>{error}</p>
-            ))}
-          </section>
-        )}
+        </main>
 
       </div>
     </div>
   );
 }
-
-
-function cleanDay(day) {
-  if (!day) {
-    return "";
-  }
-
-  return day.replace(/^Day\s+\d+:\s*/i, "");
-}
-
 
 export default App;
