@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from models.trip import TravelPlan, DayPlan, Activity
 
 from api.main import app
 
@@ -78,7 +79,35 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
 
     expected_plan = TravelPlan(
         destination="Tokyo",
-        itinerary=["Visit Shibuya", "Visit Tokyo Tower"],
+        itinerary=[
+            DayPlan(
+                day=1,
+                title="Exploring Shibuya",
+                summary="Explore Shibuya and its major attractions.",
+                morning=[
+                    Activity(
+                        name="Shibuya Crossing",
+                        description="Visit the famous Shibuya Crossing.",
+                        location="Shibuya",
+                        duration="1 hour",
+                        estimated_cost=0,
+                    )
+                ],
+                afternoon=[
+                    Activity(
+                        name="Tokyo Tower",
+                        description="Visit Tokyo Tower and enjoy the city views.",
+                        location="Minato",
+                        duration="2 hours",
+                        estimated_cost=1200,
+                    )
+                ],
+                evening=[],
+                meals=["Try local Japanese food in Shibuya"],
+                travel_tips=["Use Tokyo's train network"],
+                weather_note=None,
+            )
+        ],
 
         flights=FlightRecommendation(
             origin="Delhi",
@@ -161,9 +190,26 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
     # --------------------------------------------------------
 
     assert data["destination"] == "Tokyo"
-    assert data["itinerary"] == [
-        "Visit Shibuya",
-        "Visit Tokyo Tower",
+    assert len(data["itinerary"]) == 1
+
+    day = data["itinerary"][0]
+
+    assert day["day"] == 1
+    assert day["title"] == "Exploring Shibuya"
+    assert day["summary"] == "Explore Shibuya and its major attractions."
+
+    assert day["morning"][0]["name"] == "Shibuya Crossing"
+    assert day["morning"][0]["location"] == "Shibuya"
+
+    assert day["afternoon"][0]["name"] == "Tokyo Tower"
+    assert day["afternoon"][0]["estimated_cost"] == 1200
+
+    assert day["meals"] == [
+        "Try local Japanese food in Shibuya"
+    ]
+
+    assert day["travel_tips"] == [
+        "Use Tokyo's train network"
     ]
 
     # --------------------------------------------------------
