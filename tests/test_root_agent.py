@@ -50,6 +50,8 @@ def test_flight_agent_failure():
 
     agent = make_agent()
 
+    agent.itinerary_agent.generate = lambda *args: []
+
     agent.a2a_transport.send.side_effect = [
         failure_response("Flight API failed"),
 
@@ -95,6 +97,8 @@ def test_flight_agent_failure():
 def test_hotel_agent_failure():
 
     agent = make_agent()
+
+    agent.itinerary_agent.generate = lambda *args: []
 
     agent.a2a_transport.send.side_effect = [
         success_response(
@@ -142,6 +146,8 @@ def test_hotel_agent_failure():
 def test_weather_agent_failure():
 
     agent = make_agent()
+
+    agent.itinerary_agent.generate = lambda *args: []
 
     agent.a2a_transport.send.side_effect = [
         success_response(
