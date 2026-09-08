@@ -16,6 +16,8 @@ from a2a.messages import A2ARequest
 
 from a2a.local_transport import LocalA2ATransport
 
+from services.budget_engine import BudgetEngine
+
 
 class RootTravelAgent:
 
@@ -53,6 +55,8 @@ class RootTravelAgent:
             self.a2a_transport = a2a_transport
 
         self.itinerary_generator = ItineraryGenerator()
+
+        self.budget_engine = BudgetEngine()
 
 
     def extract_local_fields(self, user_message: str) -> TravelRequest:
@@ -966,6 +970,35 @@ New User Message:
             )
 
         # ========================================================
+        # BUDGET ENGINE
+        # ========================================================
+
+        budget_breakdown = None
+
+        try:
+
+            budget_breakdown = self.budget_engine.calculate(
+                plan=TravelPlan(
+                    destination=request.destination,
+                    itinerary=itinerary,
+                    flights=flight_result,
+                    hotels=hotel_result,
+                    weather=weather_result,
+                ),
+                budget=request.budget,
+                travelers=request.travelers,
+                days=request.days,
+            )
+
+        except Exception as e:
+
+            print(f"Budget calculation failed: {e}")
+
+            errors.append(
+                f"Budget service unavailable: {e}"
+            )
+
+        # ========================================================
         # FINAL TRAVEL PLAN
         # ========================================================
 
@@ -976,6 +1009,8 @@ New User Message:
             flights=flight_result,
             hotels=hotel_result,
             weather=weather_result,
+
+            budget_breakdown=budget_breakdown,
 
             flight_status=flight_status,
             hotel_status=hotel_status,
