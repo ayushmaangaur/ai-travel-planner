@@ -237,6 +237,12 @@ def test_root_agent_handles_flight_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
+    monkeypatch.setattr(
+        agent.itinerary_agent,
+        "generate",
+        lambda *args, **kwargs: []
+    )
+
     def fail_flights(request):
         raise Exception("Flight API timeout")
 
@@ -265,6 +271,12 @@ def test_root_agent_handles_hotel_failure(monkeypatch):
 
     agent = RootTravelAgent()
 
+    monkeypatch.setattr(
+        agent.itinerary_agent,
+        "generate",
+        lambda *args, **kwargs: []
+    )
+
     def fail_hotels(request):
         raise Exception("Hotel service unavailable")
 
@@ -292,6 +304,12 @@ def test_root_agent_handles_hotel_failure(monkeypatch):
 def test_root_agent_handles_weather_failure(monkeypatch):
 
     agent = RootTravelAgent()
+
+    monkeypatch.setattr(
+        agent.itinerary_agent,
+        "generate",
+        lambda *args, **kwargs: []
+    )
 
     def fail_weather(request):
         raise Exception("Weather API timeout")
@@ -343,6 +361,12 @@ def test_root_agent_handles_all_agent_failures(monkeypatch):
         lambda request: (
             (_ for _ in ()).throw(Exception("Weather failed"))
         ),
+    )
+
+    monkeypatch.setattr(
+        agent.itinerary_agent,
+        "generate",
+        lambda *args, **kwargs: []
     )
 
     result = agent.plan_trip(

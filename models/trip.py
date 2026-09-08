@@ -35,7 +35,9 @@ class DayPlan:
     evening: list[Activity] = field(default_factory=list)
 
     meals: list[str] = field(default_factory=list)
+
     travel_tips: list[str] = field(default_factory=list)
+
     weather_note: Optional[str] = None
 
 

@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from models.trip import TravelPlan, DayPlan, Activity
 
 from api.main import app
 from models.trip import TravelPlan, DayPlan, Activity
@@ -82,32 +83,30 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
         itinerary=[
             DayPlan(
                 day=1,
-                title="Tokyo Highlights",
-                summary="Explore some of Tokyo's most famous attractions.",
+                title="Exploring Shibuya",
+                summary="Explore Shibuya and its major attractions.",
                 morning=[
                     Activity(
-                        name="Visit Shibuya",
-                        description="Explore Shibuya Crossing and the surrounding area.",
+                        name="Shibuya Crossing",
+                        description="Visit the famous Shibuya Crossing.",
                         location="Shibuya",
-                        duration="2 hours",
-                        estimated_cost=500,
-                        currency="INR",
+                        duration="1 hour",
+                        estimated_cost=0,
                     )
                 ],
                 afternoon=[
                     Activity(
-                        name="Visit Tokyo Tower",
-                        description="See Tokyo from the observation deck.",
-                        location="Tokyo Tower",
+                        name="Tokyo Tower",
+                        description="Visit Tokyo Tower and enjoy the city views.",
+                        location="Minato",
                         duration="2 hours",
-                        estimated_cost=1000,
-                        currency="INR",
+                        estimated_cost=1200,
                     )
                 ],
                 evening=[],
-                meals=["Lunch in Shibuya", "Dinner in Tokyo"],
-                travel_tips=["Use public transportation."],
-                weather_note="Check the forecast before heading out.",
+                meals=["Try local Japanese food in Shibuya"],
+                travel_tips=["Use Tokyo's train network"],
+                weather_note=None,
             )
         ],
 
@@ -192,27 +191,26 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
     # --------------------------------------------------------
 
     assert data["destination"] == "Tokyo"
-    # --------------------------------------------------------
-    # Structured itinerary
-    # --------------------------------------------------------
-
     assert len(data["itinerary"]) == 1
 
     day = data["itinerary"][0]
 
     assert day["day"] == 1
-    assert day["title"] == "Tokyo Highlights"
+    assert day["title"] == "Exploring Shibuya"
+    assert day["summary"] == "Explore Shibuya and its major attractions."
 
-    assert day["morning"][0]["name"] == "Visit Shibuya"
-    assert day["afternoon"][0]["name"] == "Visit Tokyo Tower"
+    assert day["morning"][0]["name"] == "Shibuya Crossing"
+    assert day["morning"][0]["location"] == "Shibuya"
+
+    assert day["afternoon"][0]["name"] == "Tokyo Tower"
+    assert day["afternoon"][0]["estimated_cost"] == 1200
 
     assert day["meals"] == [
-        "Lunch in Shibuya",
-        "Dinner in Tokyo",
+        "Try local Japanese food in Shibuya"
     ]
 
     assert day["travel_tips"] == [
-        "Use public transportation."
+        "Use Tokyo's train network"
     ]
 
     assert day["weather_note"] == (

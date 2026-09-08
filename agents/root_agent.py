@@ -16,8 +16,8 @@ from a2a.messages import A2ARequest
 
 from a2a.local_transport import LocalA2ATransport
 
-from services.budget_engine import BudgetEngine
-from services.plan_optimizer import PlanOptimizer
+from agents.itinerary_agent import ItineraryAgent
+
 
 class RootTravelAgent:
 
@@ -53,14 +53,7 @@ class RootTravelAgent:
         else:
             self.a2a_transport = a2a_transport
 
-        self.llm = LLMService()
-
-        self.itinerary_generator = ItineraryGenerator(
-            llm_service=self.llm
-        )
-
-        self.budget_engine = BudgetEngine()
-        self.plan_optimizer = PlanOptimizer()
+        self.itinerary_agent = ItineraryAgent()
 
 
     def extract_local_fields(self, user_message: str) -> TravelRequest:
@@ -958,7 +951,7 @@ New User Message:
 
         try:
 
-            itinerary = self.itinerary_generator.generate(
+            itinerary = self.itinerary_agent.generate(
                 request,
                 flight_result,
                 hotel_result,
@@ -967,7 +960,7 @@ New User Message:
 
         except Exception as e:
 
-            print(f"Itinerary generation failed: {e}")
+            print(f"ItineraryAgent failed: {e}")
 
             errors.append(
                 f"Itinerary service unavailable: {e}"
