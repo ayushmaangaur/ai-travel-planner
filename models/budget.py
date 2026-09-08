@@ -2,6 +2,16 @@ from dataclasses import dataclass, field
 
 
 @dataclass
+class OptimizationAction:
+    type: str
+    action: str
+    description: str
+    previous_cost: float = 0.0
+    new_cost: float = 0.0
+    savings: float = 0.0
+
+
+@dataclass
 class BudgetBreakdown:
     budget: float
     flights: float = 0.0
@@ -13,7 +23,9 @@ class BudgetBreakdown:
     remaining: float = 0.0
     within_budget: bool = True
     budget_used_percentage: float = 0.0
-    optimization_actions: list[str] = field(default_factory=list)
+    optimization_actions: list[OptimizationAction] = field(
+        default_factory=list
+    )
 
     @property
     def exceeded_by(self) -> float:

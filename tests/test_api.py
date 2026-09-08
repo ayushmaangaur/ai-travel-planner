@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from api.main import app
+from models.trip import TravelPlan, DayPlan, Activity
 
 
 client = TestClient(app)
@@ -78,7 +79,37 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
 
     expected_plan = TravelPlan(
         destination="Tokyo",
-        itinerary=["Visit Shibuya", "Visit Tokyo Tower"],
+        itinerary=[
+            DayPlan(
+                day=1,
+                title="Tokyo Highlights",
+                summary="Explore some of Tokyo's most famous attractions.",
+                morning=[
+                    Activity(
+                        name="Visit Shibuya",
+                        description="Explore Shibuya Crossing and the surrounding area.",
+                        location="Shibuya",
+                        duration="2 hours",
+                        estimated_cost=500,
+                        currency="INR",
+                    )
+                ],
+                afternoon=[
+                    Activity(
+                        name="Visit Tokyo Tower",
+                        description="See Tokyo from the observation deck.",
+                        location="Tokyo Tower",
+                        duration="2 hours",
+                        estimated_cost=1000,
+                        currency="INR",
+                    )
+                ],
+                evening=[],
+                meals=["Lunch in Shibuya", "Dinner in Tokyo"],
+                travel_tips=["Use public transportation."],
+                weather_note="Check the forecast before heading out.",
+            )
+        ],
 
         flights=FlightRecommendation(
             origin="Delhi",
@@ -161,10 +192,32 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
     # --------------------------------------------------------
 
     assert data["destination"] == "Tokyo"
-    assert data["itinerary"] == [
-        "Visit Shibuya",
-        "Visit Tokyo Tower",
+    # --------------------------------------------------------
+    # Structured itinerary
+    # --------------------------------------------------------
+
+    assert len(data["itinerary"]) == 1
+
+    day = data["itinerary"][0]
+
+    assert day["day"] == 1
+    assert day["title"] == "Tokyo Highlights"
+
+    assert day["morning"][0]["name"] == "Visit Shibuya"
+    assert day["afternoon"][0]["name"] == "Visit Tokyo Tower"
+
+    assert day["meals"] == [
+        "Lunch in Shibuya",
+        "Dinner in Tokyo",
     ]
+
+    assert day["travel_tips"] == [
+        "Use public transportation."
+    ]
+
+    assert day["weather_note"] == (
+        "Check the forecast before heading out."
+    )
 
     # --------------------------------------------------------
     # Flight response

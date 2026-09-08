@@ -1,14 +1,15 @@
 from models.trip import TravelPlan
+from models.budget import OptimizationAction
 from services.budget_engine import BudgetEngine
 
 
 class PlanOptimizer:
+
     """
     Deterministic optimization layer for travel plans.
 
-    The optimizer does not use an LLM. It evaluates the generated
-    travel plan against the user's budget and attempts to reduce
-    costs using deterministic rules.
+    The optimizer evaluates a generated plan against the user's
+    budget and applies deterministic cost-reduction strategies.
     """
 
     def __init__(self):
@@ -24,9 +25,9 @@ class PlanOptimizer:
 
         actions = []
 
-        # --------------------------------------------------------
+        # ========================================================
         # INITIAL CALCULATION
-        # --------------------------------------------------------
+        # ========================================================
 
         breakdown = self.budget_engine.calculate(
             plan=plan,
@@ -35,33 +36,56 @@ class PlanOptimizer:
             days=days,
         )
 
-        # Already within budget
+        # ========================================================
+        # ALREADY WITHIN BUDGET
+        # ========================================================
+
         if breakdown.within_budget:
-            breakdown.optimization_actions = [
-                "No optimization required. Plan is within budget."
-            ]
+
+            breakdown.optimization_actions = []
 
             plan.budget_breakdown = breakdown
-            plan.optimization_actions = (
-                breakdown.optimization_actions
-            )
+            plan.optimization_actions = []
 
             return plan
 
         actions.append(
-            f"Initial estimated cost was ₹{breakdown.total:,.0f}, "
-            f"which exceeds the ₹{budget:,.0f} budget."
+            OptimizationAction(
+                type="budget",
+                action="initial_check",
+                description=(
+                    f"Initial estimated cost was "
+                    f"₹{breakdown.total:,.0f}, exceeding the "
+                    f"₹{budget:,.0f} budget."
+                ),
+                previous_cost=breakdown.total,
+                new_cost=breakdown.total,
+                savings=0.0,
+            )
         )
 
-        # --------------------------------------------------------
+        # ========================================================
         # STEP 1: CHEAPER FLIGHT
-        # --------------------------------------------------------
+        # ========================================================
 
-        flight_changed = self._select_cheapest_flight(plan)
+        flight_change = self._select_cheapest_flight(plan)
 
-        if flight_changed:
+        if flight_change is not None:
+
+            previous_cost, new_cost, description = flight_change
+
             actions.append(
-                "Selected the lowest-cost available flight option."
+                OptimizationAction(
+                    type="flight",
+                    action="select_cheaper",
+                    description=description,
+                    previous_cost=previous_cost,
+                    new_cost=new_cost,
+                    savings=max(
+                        0.0,
+                        previous_cost - new_cost,
+                    ),
+                )
             )
 
             breakdown = self.budget_engine.calculate(
@@ -78,15 +102,28 @@ class PlanOptimizer:
                     actions,
                 )
 
-        # --------------------------------------------------------
+        # ========================================================
         # STEP 2: CHEAPER HOTEL
-        # --------------------------------------------------------
+        # ========================================================
 
-        hotel_changed = self._select_cheapest_hotel(plan)
+        hotel_change = self._select_cheapest_hotel(plan)
 
-        if hotel_changed:
+        if hotel_change is not None:
+
+            previous_cost, new_cost, description = hotel_change
+
             actions.append(
-                "Selected the lowest-cost available hotel option."
+                OptimizationAction(
+                    type="hotel",
+                    action="select_cheaper",
+                    description=description,
+                    previous_cost=previous_cost,
+                    new_cost=new_cost,
+                    savings=max(
+                        0.0,
+                        previous_cost - new_cost,
+                    ),
+                )
             )
 
             breakdown = self.budget_engine.calculate(
@@ -103,9 +140,9 @@ class PlanOptimizer:
                     actions,
                 )
 
-        # --------------------------------------------------------
+        # ========================================================
         # STEP 3: REMOVE EXPENSIVE ACTIVITIES
-        # --------------------------------------------------------
+        # ========================================================
 
         removed_activities = self._remove_expensive_activities(
             plan=plan,
@@ -114,9 +151,20 @@ class PlanOptimizer:
             days=days,
         )
 
-        for activity_name in removed_activities:
+        for activity_name, activity_cost in removed_activities:
+
             actions.append(
-                f"Removed high-cost activity: {activity_name}."
+                OptimizationAction(
+                    type="activity",
+                    action="remove",
+                    description=(
+                        f"Removed high-cost activity: "
+                        f"{activity_name}"
+                    ),
+                    previous_cost=activity_cost,
+                    new_cost=0.0,
+                    savings=activity_cost,
+                )
             )
 
             breakdown = self.budget_engine.calculate(
@@ -133,9 +181,9 @@ class PlanOptimizer:
                     actions,
                 )
 
-        # --------------------------------------------------------
-        # COULD NOT FULLY OPTIMIZE
-        # --------------------------------------------------------
+        # ========================================================
+        # FINAL CALCULATION
+        # ========================================================
 
         breakdown = self.budget_engine.calculate(
             plan=plan,
@@ -146,12 +194,28 @@ class PlanOptimizer:
 
         if breakdown.within_budget:
             actions.append(
-                "Plan successfully brought within budget."
+                OptimizationAction(
+                    type="budget",
+                    action="within_budget",
+                    description="Plan successfully brought within budget.",
+                    previous_cost=breakdown.total,
+                    new_cost=breakdown.total,
+                    savings=0.0,
+                )
             )
         else:
             actions.append(
-                f"Plan remains ₹{breakdown.exceeded_by:,.0f} "
-                f"over budget after available optimizations."
+                OptimizationAction(
+                    type="budget",
+                    action="over_budget",
+                    description=(
+                        f"Plan remains ₹{breakdown.exceeded_by:,.0f} "
+                        f"over budget after available optimizations."
+                    ),
+                    previous_cost=breakdown.total,
+                    new_cost=breakdown.total,
+                    savings=0.0,
+                )
             )
 
         return self._finalize(
@@ -164,10 +228,10 @@ class PlanOptimizer:
     # FLIGHT OPTIMIZATION
     # ============================================================
 
-    def _select_cheapest_flight(self, plan: TravelPlan) -> bool:
+    def _select_cheapest_flight(self, plan):
 
         if plan.flights is None:
-            return False
+            return None
 
         options = getattr(
             plan.flights,
@@ -181,31 +245,43 @@ class PlanOptimizer:
             if option.price is not None
         ]
 
-        if not priced_options:
-            return False
+        if len(priced_options) < 2:
+            return None
+
+        current = priced_options[0]
 
         cheapest = min(
             priced_options,
             key=lambda option: float(option.price),
         )
 
-        # If already only has the cheapest option,
-        # no actual optimization happened.
-        if len(options) == 1 and options[0] is cheapest:
-            return False
+        if current is cheapest:
+            return None
+
+        previous_cost = float(current.price)
+        new_cost = float(cheapest.price)
 
         plan.flights.options = [cheapest]
 
-        return True
+        description = (
+            f"Selected {cheapest.airline}"
+            f"{' ' + cheapest.flight_number if cheapest.flight_number else ''}"
+        )
+
+        return (
+            previous_cost,
+            new_cost,
+            description,
+        )
 
     # ============================================================
     # HOTEL OPTIMIZATION
     # ============================================================
 
-    def _select_cheapest_hotel(self, plan: TravelPlan) -> bool:
+    def _select_cheapest_hotel(self, plan):
 
         if plan.hotels is None:
-            return False
+            return None
 
         options = getattr(
             plan.hotels,
@@ -219,8 +295,10 @@ class PlanOptimizer:
             if option.price_per_night is not None
         ]
 
-        if not priced_options:
-            return False
+        if len(priced_options) < 2:
+            return None
+
+        current = priced_options[0]
 
         cheapest = min(
             priced_options,
@@ -229,12 +307,28 @@ class PlanOptimizer:
             ),
         )
 
-        if len(options) == 1 and options[0] is cheapest:
-            return False
+        if current is cheapest:
+            return None
+
+        previous_cost = float(
+            current.price_per_night
+        )
+
+        new_cost = float(
+            cheapest.price_per_night
+        )
 
         plan.hotels.options = [cheapest]
 
-        return True
+        description = (
+            f"Selected {cheapest.name}"
+        )
+
+        return (
+            previous_cost,
+            new_cost,
+            description,
+        )
 
     # ============================================================
     # ACTIVITY OPTIMIZATION
@@ -242,11 +336,11 @@ class PlanOptimizer:
 
     def _remove_expensive_activities(
         self,
-        plan: TravelPlan,
-        budget: float,
-        travelers: int,
-        days: int,
-    ) -> list[str]:
+        plan,
+        budget,
+        travelers,
+        days,
+    ):
 
         activities = []
 
@@ -277,18 +371,32 @@ class PlanOptimizer:
 
         for activity in activities:
 
-            current_breakdown = self.budget_engine.calculate(
-                plan=plan,
-                budget=budget,
-                travelers=travelers,
-                days=days,
+            current_breakdown = (
+                self.budget_engine.calculate(
+                    plan=plan,
+                    budget=budget,
+                    travelers=travelers,
+                    days=days,
+                )
             )
 
             if current_breakdown.within_budget:
                 break
 
-            if self._remove_activity(plan, activity):
-                removed.append(activity.name)
+            cost = float(
+                activity.estimated_cost
+            )
+
+            if self._remove_activity(
+                plan,
+                activity,
+            ):
+                removed.append(
+                    (
+                        activity.name,
+                        cost,
+                    )
+                )
 
         return removed
 
@@ -298,9 +406,9 @@ class PlanOptimizer:
 
     def _remove_activity(
         self,
-        plan: TravelPlan,
+        plan,
         target,
-    ) -> bool:
+    ):
 
         for day in plan.itinerary:
 
@@ -327,10 +435,10 @@ class PlanOptimizer:
 
     def _finalize(
         self,
-        plan: TravelPlan,
+        plan,
         breakdown,
-        actions: list[str],
-    ) -> TravelPlan:
+        actions,
+    ):
 
         breakdown.optimization_actions = actions
 
