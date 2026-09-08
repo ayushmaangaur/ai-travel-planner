@@ -50,6 +50,7 @@ class TravelPlan:
     weather: object | None = None
 
     budget_breakdown: object | None = None
+    optimization_actions: list[str] = field(default_factory=list)
 
     flight_status: str = "available"
     hotel_status: str = "available"

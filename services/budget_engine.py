@@ -77,15 +77,7 @@ class BudgetEngine:
             budget_used_percentage=budget_used_percentage,
         )
 
-    def _calculate_flight_cost(self, plan: TravelPlan) -> float:
-        """
-        Use the cheapest available flight option.
-
-        The FlightRecommendation contains multiple FlightOption
-        objects, so we do not assume the recommendation itself
-        has a price.
-        """
-
+    def _calculate_flight_cost(self, plan):
         if plan.flights is None:
             return 0.0
 
@@ -100,7 +92,9 @@ class BudgetEngine:
         if not prices:
             return 0.0
 
-        return min(prices)
+        # The first option represents the currently selected
+        # flight for the plan.
+        return prices[0]
 
     def _calculate_hotel_cost(
         self,
@@ -133,7 +127,7 @@ class BudgetEngine:
 
         nights = max(0, days - 1)
 
-        return min(prices) * nights
+        return prices[0] * nights
 
     def _calculate_activity_cost(self, plan):
         total = 0.0
