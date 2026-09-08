@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 
 function App() {
-  const emptyForm = {
+  const [form, setForm] = useState({
     current_location: "",
     origin: "",
     destination: "",
@@ -11,9 +11,7 @@ function App() {
     travelers: "",
     preference: "",
     start_date: "",
-  };
-
-  const [form, setForm] = useState(emptyForm);
+  });
 
   const [messages, setMessages] = useState([
     {
@@ -45,10 +43,6 @@ function App() {
     setForm((prev) => ({
       ...prev,
       current_location: value,
-      origin:
-        prev.origin === prev.current_location
-          ? value
-          : prev.origin,
     }));
   };
 
@@ -82,9 +76,17 @@ function App() {
       return "Your travel plan is ready!";
     }
 
-    if (plan.itinerary?.length) {
-      text += `🗓️ ${plan.itinerary.length}-day itinerary created.\n\n`;
-    }
+    return `✈️ Your trip to ${plan.destination} is ready!`;
+  };
+
+  const renderActivity = (activity) => (
+    <div className="activity-item" key={activity.name}>
+      <div className="activity-main">
+        <strong>{activity.name}</strong>
+
+        {activity.description && (
+          <p>{activity.description}</p>
+        )}
 
         <div className="activity-meta">
           {activity.location && (
@@ -507,7 +509,17 @@ function App() {
   };
 
   const resetPlanner = () => {
-    setForm(emptyForm);
+    setForm({
+      current_location: "",
+      origin: "",
+      destination: "",
+      days: "",
+      budget: "",
+      travelers: "",
+      preference: "",
+      start_date: "",
+    });
+
     setSubmitted(false);
 
     setMessages([
@@ -518,135 +530,6 @@ function App() {
           "Let's plan another adventure ✈️ Fill in your trip details below.",
       },
     ]);
-  };
-
-  const renderActivities = (activities) => {
-    if (!activities?.length) {
-      return (
-        <div className="empty-activities">
-          No activities planned.
-        </div>
-      );
-    }
-
-    return activities.map((activity, index) => (
-      <div className="activity" key={index}>
-        <div className="activity-main">
-          <div className="activity-title">
-            {activity.name}
-          </div>
-
-          {activity.description && (
-            <div className="activity-description">
-              {activity.description}
-            </div>
-          )}
-
-          <div className="activity-meta">
-            {activity.location && (
-              <span>📍 {activity.location}</span>
-            )}
-
-            {activity.duration && (
-              <span>⏱️ {activity.duration}</span>
-            )}
-
-            {activity.estimated_cost !== null &&
-              activity.estimated_cost !== undefined && (
-                <span>
-                  💰 {activity.currency || "INR"}{" "}
-                  {activity.estimated_cost}
-                </span>
-              )}
-          </div>
-        </div>
-      </div>
-    ));
-  };
-
-  const renderDay = (day) => {
-    return (
-      <div className="day-card" key={day.day}>
-        <div className="day-header">
-          <div className="day-number">
-            Day {day.day}
-          </div>
-
-          <div className="day-heading">
-            <h3>{day.title}</h3>
-            <p>{day.summary}</p>
-          </div>
-        </div>
-
-        <div className="day-sections">
-          <div className="time-section">
-            <div className="time-header">
-              <span className="time-icon">🌅</span>
-              <span>Morning</span>
-            </div>
-
-            <div className="activities">
-              {renderActivities(day.morning)}
-            </div>
-          </div>
-
-          <div className="time-section">
-            <div className="time-header">
-              <span className="time-icon">☀️</span>
-              <span>Afternoon</span>
-            </div>
-
-            <div className="activities">
-              {renderActivities(day.afternoon)}
-            </div>
-          </div>
-
-          <div className="time-section">
-            <div className="time-header">
-              <span className="time-icon">🌆</span>
-              <span>Evening</span>
-            </div>
-
-            <div className="activities">
-              {renderActivities(day.evening)}
-            </div>
-          </div>
-        </div>
-
-        {day.meals?.length > 0 && (
-          <div className="day-extra">
-            <div className="extra-title">🍴 Meals</div>
-
-            <ul>
-              {day.meals.map((meal, index) => (
-                <li key={index}>{meal}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {day.travel_tips?.length > 0 && (
-          <div className="day-extra">
-            <div className="extra-title">
-              🚕 Travel tips
-            </div>
-
-            <ul>
-              {day.travel_tips.map((tip, index) => (
-                <li key={index}>{tip}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {day.weather_note && (
-          <div className="weather-note">
-            <span>🌤️</span>
-            <span>{day.weather_note}</span>
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -693,7 +576,8 @@ function App() {
 
                       <div className="submitted-summary">
                         <span>
-                          📍 {message.form.current_location}
+                          📍{" "}
+                          {message.form.current_location}
                         </span>
 
                         <span>
@@ -709,11 +593,10 @@ function App() {
                         </span>
 
                         <span>
-                          💰 ₹{message.form.budget}
-                        </span>
-
-                        <span>
-                          🗓️ {message.form.start_date}
+                          💰 ₹
+                          {Number(
+                            message.form.budget
+                          ).toLocaleString("en-IN")}
                         </span>
                       </div>
                     </>
@@ -728,81 +611,24 @@ function App() {
                   )}
                 </div>
 
-                {/* STRUCTURED TRAVEL PLAN */}
+                {/* PLAN */}
                 {message.type === "plan" &&
                   message.plan && (
                     <div className="plan-details">
 
-                      {/* TRIP OVERVIEW */}
-                      <div className="overview-card">
-                        <div className="overview-title">
-                          ✨ Trip overview
-                        </div>
-
-                        <div className="overview-grid">
-                          <div>
-                            <span>Destination</span>
-                            <strong>
-                              {message.plan.destination}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span>Flights</span>
-                            <strong>
-                              {message.plan.flight_status ===
-                              "available"
-                                ? "Available"
-                                : "Unavailable"}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span>Hotels</span>
-                            <strong>
-                              {message.plan.hotel_status ===
-                              "available"
-                                ? "Available"
-                                : "Unavailable"}
-                            </strong>
-                          </div>
-
-                          <div>
-                            <span>Weather</span>
-                            <strong>
-                              {message.plan.weather_status ===
-                              "available"
-                                ? "Available"
-                                : "Unavailable"}
-                            </strong>
-                          </div>
-                        </div>
-                      </div>
-
                       {/* ITINERARY */}
-                      {message.plan.itinerary?.length > 0 && (
-                        <div className="itinerary-section">
-                          <div className="section-heading">
-                            <div>
-                              <h2>🗓️ Your itinerary</h2>
-                              <p>
-                                A day-by-day plan built around
-                                your trip requirements.
-                              </p>
-                            </div>
-                          </div>
+                      {renderItinerary(
+                        message.plan
+                      )}
 
-                          <div className="days">
-                            {message.plan.itinerary.map(
-                              renderDay
-                            )}
-                          </div>
-                        </div>
+                      {/* BUDGET */}
+                      {renderBudgetSummary(
+                        message.plan
                       )}
 
                       {/* FLIGHTS */}
-                      {message.plan.flights?.options?.length >
-                        0 && (
+                      {message.plan.flights
+                        ?.options?.length > 0 && (
                         <div className="result-card">
                           <div className="result-card-title">
                             ✈️ Flight options
@@ -814,17 +640,13 @@ function App() {
                                 className="result-item"
                                 key={i}
                               >
-                                <div className="result-main">
-                                  <strong>
-                                    {flight.airline}
-                                  </strong>
+                                <strong>
+                                  {flight.airline}
+                                </strong>
 
-                                  {flight.flight_number && (
-                                    <span>
-                                      {flight.flight_number}
-                                    </span>
-                                  )}
-                                </div>
+                                <span>
+                                  {flight.flight_number}
+                                </span>
 
                                 <span>
                                   {flight.departure_airport}{" "}
@@ -832,15 +654,16 @@ function App() {
                                   {flight.arrival_airport}
                                 </span>
 
-                                {flight.departure_time && (
-                                  <span>
-                                    🕐{" "}
-                                    {flight.departure_time}
-                                  </span>
-                                )}
+                                <span>
+                                  {flight.departure_time}{" "}
+                                  →{" "}
+                                  {flight.arrival_time}
+                                </span>
 
-                                <span className="result-price">
-                                  ₹{flight.price}
+                                <span>
+                                  {formatCurrency(
+                                    flight.price
+                                  )}
                                 </span>
                               </div>
                             )
@@ -849,8 +672,8 @@ function App() {
                       )}
 
                       {/* HOTELS */}
-                      {message.plan.hotels?.options?.length >
-                        0 && (
+                      {message.plan.hotels
+                        ?.options?.length > 0 && (
                         <div className="result-card">
                           <div className="result-card-title">
                             🏨 Hotel options
@@ -862,29 +685,22 @@ function App() {
                                 className="result-item"
                                 key={i}
                               >
-                                <div className="result-main">
-                                  <strong>
-                                    {hotel.name}
-                                  </strong>
+                                <strong>
+                                  {hotel.name}
+                                </strong>
 
-                                  {hotel.location && (
-                                    <span>
-                                      📍 {hotel.location}
-                                    </span>
-                                  )}
-                                </div>
+                                <span>
+                                  {hotel.location}
+                                </span>
 
-                                {hotel.rating && (
-                                  <span>
-                                    ⭐ {hotel.rating}
-                                  </span>
-                                )}
+                                <span>
+                                  ⭐ {hotel.rating}
+                                </span>
 
-                                <span className="result-price">
-                                  ₹
-                                  {
+                                <span>
+                                  {formatCurrency(
                                     hotel.price_per_night
-                                  }
+                                  )}
                                   /night
                                 </span>
                               </div>
@@ -894,11 +710,11 @@ function App() {
                       )}
 
                       {/* WEATHER */}
-                      {message.plan.weather?.forecast
-                        ?.length > 0 && (
+                      {message.plan.weather
+                        ?.forecast?.length > 0 && (
                         <div className="result-card">
                           <div className="result-card-title">
-                            🌤️ Weather forecast
+                            🌤️ Weather
                           </div>
 
                           {message.plan.weather.forecast.map(
@@ -907,11 +723,9 @@ function App() {
                                 className="result-item"
                                 key={i}
                               >
-                                <div className="result-main">
-                                  <strong>
-                                    {day.date}
-                                  </strong>
-                                </div>
+                                <strong>
+                                  {day.date}
+                                </strong>
 
                                 <span>
                                   {day.condition}
@@ -920,29 +734,34 @@ function App() {
                                 <span>
                                   {day.temperature}
                                 </span>
+
+                                <span>
+                                  {day.precipitation}
+                                </span>
                               </div>
                             )
                           )}
                         </div>
                       )}
 
-                      {/* ERRORS */}
-                      {message.plan.errors?.length > 0 && (
-                        <div className="error-card">
+                      {/* SERVICE WARNINGS */}
+                      {message.plan.errors
+                        ?.length > 0 && (
+                        <div className="service-warning">
                           <strong>
-                            ⚠️ Some parts of the trip
-                            could not be completed
+                            ⚠️ Some travel services were unavailable
                           </strong>
 
                           {message.plan.errors.map(
-                            (error, index) => (
-                              <div key={index}>
+                            (error, i) => (
+                              <span key={i}>
                                 {error}
-                              </div>
+                              </span>
                             )
                           )}
                         </div>
                       )}
+
                     </div>
                   )}
 
@@ -966,6 +785,7 @@ function App() {
           {/* TRIP BUILDER */}
           {!submitted && (
             <div className="message-row assistant">
+
               <div className="avatar">✈️</div>
 
               <div className="trip-builder">
@@ -974,8 +794,7 @@ function App() {
                   <div>
                     <h2>Plan your trip</h2>
                     <p>
-                      Fill in the details and I'll handle the
-                      rest.
+                      Fill in the details and I'll handle the rest.
                     </p>
                   </div>
 
@@ -1180,6 +999,7 @@ function App() {
                       </option>
                     </select>
                   </div>
+
                 </div>
 
                 <button
@@ -1188,9 +1008,7 @@ function App() {
                   disabled={!isFormComplete || loading}
                 >
                   <span>✈️</span>
-                  {loading
-                    ? "Building your trip..."
-                    : "Plan my trip"}
+                  Plan my trip
                   <span>→</span>
                 </button>
 
@@ -1199,6 +1017,7 @@ function App() {
                     Fill in the required details to continue
                   </p>
                 )}
+
               </div>
             </div>
           )}
@@ -1212,6 +1031,7 @@ function App() {
               ✨ Plan another trip
             </button>
           )}
+
         </main>
       </div>
     </div>

@@ -42,24 +42,6 @@ def test_complete_trip_does_not_need_gemini_for_request_parsing(
             }
             """
 
-        if "Itinerary Agent" in prompt:
-            return """
-            [
-                {
-                    "day": 1,
-                    "title": "Arrival in Tokyo",
-                    "activities": [
-                        "Arrive in Tokyo",
-                        "Check into hotel",
-                        "Explore nearby area"
-                    ],
-                    "meals": [],
-                    "estimated_cost": 5000,
-                    "notes": "Take the evening to rest after the journey."
-                }
-            ]
-            """
-
         return """
         {
             "current_location": "Delhi",
@@ -87,8 +69,9 @@ def test_complete_trip_does_not_need_gemini_for_request_parsing(
 
     assert result.destination == "Tokyo"
 
-    # The three specialized agents may use Gemini,
-    # but the initial request itself should be parsed locally.
+    # The initial request is parsed locally, so Gemini is not
+    # called for request parsing. The three specialized agents
+    # and itinerary generator each make one Gemini call.
     assert call_count == 4
 
 
