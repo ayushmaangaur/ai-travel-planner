@@ -1,9 +1,74 @@
 from utils.itinerary_generator import ItineraryGenerator
 
-from models.trip import TravelRequest
-from models.flight import FlightRecommendation, FlightOption
-from models.hotel import HotelRecommendation, HotelOption
-from models.weather import WeatherRecommendation, WeatherDay
+from models.trip import TravelRequest, DayPlan, Activity
+
+from models.flight import (
+    FlightRecommendation,
+    FlightOption,
+)
+
+from models.hotel import (
+    HotelRecommendation,
+    HotelOption,
+)
+
+from models.weather import (
+    WeatherRecommendation,
+    WeatherDay,
+)
+
+
+class FakeLLMService:
+
+    def __init__(self, itinerary):
+        self.itinerary = itinerary
+
+    def generate_itinerary(
+        self,
+        request,
+        flight_recommendation=None,
+        hotel_recommendation=None,
+        weather_recommendation=None,
+    ):
+        return self.itinerary
+
+
+def make_itinerary(days):
+    return [
+        DayPlan(
+            day=day,
+            title=f"Day {day}",
+            summary=f"Day {day} summary",
+            morning=[
+                Activity(
+                    name=f"Gateway attraction {day}",
+                    description="Destination-specific attraction.",
+                    location="City center",
+                    duration="2 hours",
+                    estimated_cost=300.0,
+                    currency="INR",
+                )
+            ],
+            afternoon=[],
+            evening=[],
+            meals=["Local food"],
+            travel_tips=[],
+        )
+        for day in range(1, days + 1)
+    ]
+
+
+def make_generator(days=3):
+    return ItineraryGenerator(
+        llm_service=FakeLLMService(
+            make_itinerary(days)
+        )
+    )
+
+
+# ================================================================
+# BASIC ITINERARY
+# ================================================================
 
 
 def test_itinerary_has_exact_number_of_days():
@@ -13,16 +78,16 @@ def test_itinerary_has_exact_number_of_days():
         destination="Tokyo",
         days=7,
         budget=50000,
-        travelers=2
+        travelers=2,
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(7)
 
     result = generator.generate(
         request,
         None,
         None,
-        None
+        None,
     )
 
     assert len(result) == 7
@@ -34,27 +99,38 @@ def test_itinerary_contains_day_numbers():
         origin="Delhi",
         destination="Tokyo",
         days=5,
-        travelers=2
+        travelers=2,
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(5)
 
     result = generator.generate(
         request,
         None,
         None,
-        None
+        None,
     )
 
     assert len(result) == 5
-    assert [day.day for day in result] == [1, 2, 3, 4, 5]
+    assert [day.day for day in result] == [
+        1,
+        2,
+        3,
+        4,
+        5,
+    ]
+
+
+# ================================================================
+# HOTEL
+# ================================================================
 
 
 def test_itinerary_uses_hotel_information():
 
     request = TravelRequest(
         destination="Tokyo",
-        days=3
+        days=3,
     )
 
     hotel_result = HotelRecommendation(
@@ -66,32 +142,38 @@ def test_itinerary_uses_hotel_information():
                 rating=4.1,
                 price_per_night=5000,
                 currency="INR",
-                amenities=[]
+                amenities=[],
             )
-        ]
+        ],
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
         None,
         hotel_result,
-        None
+        None,
     )
 
     assert len(result) == 3
+
     assert any(
         "Tokyo Budget Hotel" in tip
         for tip in result[0].travel_tips
     )
-    assert result[0].morning[0].location == "Shinjuku"
+
+
+# ================================================================
+# WEATHER
+# ================================================================
+
 
 def test_itinerary_uses_weather():
 
     request = TravelRequest(
         destination="Tokyo",
-        days=2
+        days=2,
     )
 
     weather_result = WeatherRecommendation(
@@ -101,24 +183,24 @@ def test_itinerary_uses_weather():
                 date="Day 1",
                 condition="Sunny",
                 temperature="25°C",
-                precipitation="10%"
+                precipitation="10%",
             ),
             WeatherDay(
                 date="Day 2",
                 condition="Rain",
                 temperature="20°C",
-                precipitation="70%"
-            )
-        ]
+                precipitation="70%",
+            ),
+        ],
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(2)
 
     result = generator.generate(
         request,
         None,
         None,
-        weather_result
+        weather_result,
     )
 
     assert result[0].weather_note is not None
@@ -130,23 +212,34 @@ def test_itinerary_uses_weather():
     assert "20°C" in result[1].weather_note
 
 
+# ================================================================
+# MISSING RECOMMENDATIONS
+# ================================================================
+
+
 def test_itinerary_handles_missing_recommendations():
 
     request = TravelRequest(
         destination="Tokyo",
-        days=4
+        days=4,
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(4)
 
     result = generator.generate(
         request,
         None,
         None,
-        None
+        None,
     )
 
     assert len(result) == 4
+
+
+# ================================================================
+# ARRIVAL TIME
+# ================================================================
+
 
 def test_late_arrival_is_scheduled_in_evening():
 
@@ -168,7 +261,7 @@ def test_late_arrival_is_scheduled_in_evening():
         ],
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
@@ -179,13 +272,21 @@ def test_late_arrival_is_scheduled_in_evening():
 
     day_one = result[0]
 
-    assert day_one.morning == []
-    assert day_one.afternoon == []
+    assert all(
+        activity.name != "Arrival and check-in"
+        for activity in day_one.morning
+    )
+
+    assert all(
+        activity.name != "Arrival and check-in"
+        for activity in day_one.afternoon
+    )
 
     assert any(
         activity.name == "Arrival and check-in"
         for activity in day_one.evening
     )
+
 
 def test_afternoon_arrival_is_scheduled_in_afternoon():
 
@@ -207,7 +308,7 @@ def test_afternoon_arrival_is_scheduled_in_afternoon():
         ],
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
@@ -227,6 +328,7 @@ def test_afternoon_arrival_is_scheduled_in_afternoon():
         activity.name != "Arrival and check-in"
         for activity in day_one.morning
     )
+
 
 def test_morning_arrival_is_scheduled_in_morning():
 
@@ -248,7 +350,7 @@ def test_morning_arrival_is_scheduled_in_morning():
         ],
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
@@ -269,6 +371,12 @@ def test_morning_arrival_is_scheduled_in_morning():
         for activity in day_one.afternoon
     )
 
+
+# ================================================================
+# ACTIVITY COSTS
+# ================================================================
+
+
 def test_generated_activities_have_cost_estimates():
 
     request = TravelRequest(
@@ -276,7 +384,7 @@ def test_generated_activities_have_cost_estimates():
         days=3,
     )
 
-    generator = ItineraryGenerator()
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
@@ -299,6 +407,7 @@ def test_generated_activities_have_cost_estimates():
         for activity in activities
     )
 
+
 def test_arrival_activity_has_zero_cost():
 
     request = TravelRequest(
@@ -306,16 +415,32 @@ def test_arrival_activity_has_zero_cost():
         days=3,
     )
 
-    generator = ItineraryGenerator()
+    flight_result = FlightRecommendation(
+        origin="Delhi",
+        destination="Goa",
+        options=[
+            FlightOption(
+                airline="Test Airline",
+                flight_number="TA123",
+                arrival_time="09:30",
+                price=10000,
+            )
+        ],
+    )
+
+    generator = make_generator(3)
 
     result = generator.generate(
         request,
-        None,
+        flight_result,
         None,
         None,
     )
 
-    arrival = result[0].morning[0]
+    arrival = next(
+        activity
+        for activity in result[0].morning
+        if activity.name == "Arrival and check-in"
+    )
 
-    assert arrival.name == "Arrival and check-in"
     assert arrival.estimated_cost == 0.0

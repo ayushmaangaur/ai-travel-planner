@@ -55,47 +55,361 @@ function App() {
     form.travelers &&
     form.start_date;
 
+  const formatCurrency = (value) => {
+    if (value === null || value === undefined) return "₹0";
+
+    return `₹${Number(value).toLocaleString("en-IN", {
+      maximumFractionDigits: 0,
+    })}`;
+  };
+
+  const getActivityCount = (day) => {
+    return (
+      (day.morning?.length || 0) +
+      (day.afternoon?.length || 0) +
+      (day.evening?.length || 0)
+    );
+  };
+
   const formatTravelPlan = (plan) => {
-    let text = "";
-
-    if (plan.destination) {
-      text += `✈️ Your trip to ${plan.destination} is ready!\n\n`;
+    if (!plan.destination) {
+      return "Your travel plan is ready!";
     }
 
-    if (plan.itinerary?.length) {
-      text += "🗓️ Itinerary\n\n";
+    return `✈️ Your trip to ${plan.destination} is ready!`;
+  };
 
-      plan.itinerary.forEach((day, index) => {
-        text += `${index + 1}. ${day}\n`;
-      });
+  const renderActivity = (activity) => (
+    <div className="activity-item" key={activity.name}>
+      <div className="activity-main">
+        <strong>{activity.name}</strong>
 
-      text += "\n";
-    }
+        {activity.description && (
+          <p>{activity.description}</p>
+        )}
 
-    text += "✈️ Flights: ";
-    text +=
-      plan.flight_status === "available"
-        ? "Available\n"
-        : "Currently unavailable\n";
+        <div className="activity-meta">
+          {activity.location && (
+            <span>📍 {activity.location}</span>
+          )}
 
-    text += "🏨 Hotels: ";
-    text +=
-      plan.hotel_status === "available"
-        ? "Available\n"
-        : "Currently unavailable\n";
+          {activity.duration && (
+            <span>⏱️ {activity.duration}</span>
+          )}
 
-    text += "🌤️ Weather: ";
-    text +=
-      plan.weather_status === "available"
-        ? "Available\n"
-        : "Currently unavailable\n";
+          {activity.estimated_cost !== null &&
+            activity.estimated_cost !== undefined && (
+              <span>
+                💰 {formatCurrency(activity.estimated_cost)}
+              </span>
+            )}
+        </div>
+      </div>
+    </div>
+  );
 
-    if (plan.errors?.length) {
-      text +=
-        "\n⚠️ Some services were unavailable, but I've still prepared the available parts of your trip.";
-    }
+  const renderTimeSection = (label, icon, activities) => {
+    if (!activities?.length) return null;
 
-    return text;
+    return (
+      <div className="time-section">
+        <div className="time-section-title">
+          <span>{icon}</span>
+          {label}
+        </div>
+
+        <div className="activity-list">
+          {activities.map(renderActivity)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderItinerary = (plan) => {
+    if (!plan.itinerary?.length) return null;
+
+    return (
+      <div className="itinerary-section">
+        <div className="section-heading">
+          <div>
+            <h2>🗓️ Your Itinerary</h2>
+            <p>
+              {plan.itinerary.length} day
+              {plan.itinerary.length !== 1 ? "s" : ""} planned
+            </p>
+          </div>
+        </div>
+
+        <div className="day-list">
+          {plan.itinerary.map((day) => (
+            <div className="day-card" key={day.day}>
+              <div className="day-header">
+                <div className="day-number">
+                  Day {day.day}
+                </div>
+
+                <div className="day-heading">
+                  <h3>{day.title}</h3>
+                  <p>{day.summary}</p>
+                </div>
+
+                <div className="activity-count">
+                  {getActivityCount(day)} activities
+                </div>
+              </div>
+
+              <div className="day-content">
+                {renderTimeSection(
+                  "Morning",
+                  "🌅",
+                  day.morning
+                )}
+
+                {renderTimeSection(
+                  "Afternoon",
+                  "☀️",
+                  day.afternoon
+                )}
+
+                {renderTimeSection(
+                  "Evening",
+                  "🌙",
+                  day.evening
+                )}
+
+                {day.meals?.length > 0 && (
+                  <div className="day-info-row">
+                    <strong>🍽️ Meals</strong>
+
+                    <div className="info-tags">
+                      {day.meals.map((meal, index) => (
+                        <span key={index}>{meal}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {day.travel_tips?.length > 0 && (
+                  <div className="day-info-row">
+                    <strong>💡 Travel tips</strong>
+
+                    <div className="tips-list">
+                      {day.travel_tips.map((tip, index) => (
+                        <span key={index}>• {tip}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {day.weather_note && (
+                  <div className="weather-note">
+                    <span>🌤️</span>
+                    <span>{day.weather_note}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBudgetSummary = (plan) => {
+    const budget = plan.budget_breakdown;
+
+    if (!budget) return null;
+
+    const percentage = Math.min(
+      100,
+      Math.max(0, Number(budget.budget_used_percentage || 0))
+    );
+
+    return (
+      <div className="budget-section">
+        <div className="section-heading">
+          <div>
+            <h2>💰 Budget Summary</h2>
+            <p>
+              See how your trip fits within your budget.
+            </p>
+          </div>
+
+          <div
+            className={`budget-status ${
+              budget.within_budget ? "within" : "over"
+            }`}
+          >
+            {budget.within_budget ? "✓ Within budget" : "⚠ Over budget"}
+          </div>
+        </div>
+
+        <div className="budget-card">
+          <div className="budget-total-row">
+            <div>
+              <span className="budget-label">
+                Estimated trip cost
+              </span>
+
+              <div className="budget-total">
+                {formatCurrency(budget.total)}
+              </div>
+            </div>
+
+            <div className="budget-limit">
+              <span>Budget</span>
+              <strong>{formatCurrency(budget.budget)}</strong>
+            </div>
+          </div>
+
+          <div className="budget-progress">
+            <div className="budget-progress-track">
+              <div
+                className={`budget-progress-fill ${
+                  budget.within_budget ? "within" : "over"
+                }`}
+                style={{
+                  width: `${percentage}%`,
+                }}
+              />
+            </div>
+
+            <div className="budget-progress-info">
+              <span>
+                {percentage.toFixed(1)}% used
+              </span>
+
+              <span
+                className={
+                  budget.remaining >= 0
+                    ? "remaining-positive"
+                    : "remaining-negative"
+                }
+              >
+                {budget.remaining >= 0
+                  ? `${formatCurrency(
+                      budget.remaining
+                    )} remaining`
+                  : `${formatCurrency(
+                      Math.abs(budget.remaining)
+                    )} over`}
+              </span>
+            </div>
+          </div>
+
+          <div className="budget-breakdown">
+            <div className="budget-item">
+              <span>✈️ Flights</span>
+
+              {plan.flight_status === "available" ? (
+                <strong>
+                  {formatCurrency(budget.flights)}
+                </strong>
+              ) : (
+                <strong className="unavailable">
+                  Unavailable
+                </strong>
+              )}
+            </div>
+
+            <div className="budget-item">
+              <span>🏨 Hotels</span>
+
+              {plan.hotel_status === "available" ? (
+                <strong>
+                  {formatCurrency(budget.hotels)}
+                </strong>
+              ) : (
+                <strong className="unavailable">
+                  Unavailable
+                </strong>
+              )}
+            </div>
+
+            <div className="budget-item">
+              <span>🎯 Activities</span>
+              <strong>
+                {formatCurrency(budget.activities)}
+              </strong>
+            </div>
+
+            <div className="budget-item">
+              <span>🍽️ Food</span>
+              <strong>
+                {formatCurrency(budget.food)}
+              </strong>
+            </div>
+
+            <div className="budget-item">
+              <span>🚕 Transport</span>
+              <strong>
+                {formatCurrency(budget.transport)}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {plan.optimization_actions?.length > 0 && (
+          <div className="optimization-card">
+            <div className="optimization-header">
+              <div>
+                <h3>⚙️ Budget Optimization</h3>
+                <p>
+                  Changes made to keep your trip closer to budget.
+                </p>
+              </div>
+            </div>
+
+            <div className="optimization-list">
+              {plan.optimization_actions.map(
+                (action, index) => (
+                  <div
+                    className="optimization-item"
+                    key={index}
+                  >
+                    <div className="optimization-icon">
+                      {action.type === "flight" && "✈️"}
+                      {action.type === "hotel" && "🏨"}
+                      {action.type === "activity" && "🎯"}
+                      {action.type === "budget" && "💰"}
+                    </div>
+
+                    <div className="optimization-content">
+                      <strong>
+                        {action.description}
+                      </strong>
+
+                      {action.savings > 0 && (
+                        <div className="optimization-cost">
+                          <span>
+                            {formatCurrency(
+                              action.previous_cost
+                            )}
+                          </span>
+
+                          <span>→</span>
+
+                          <span>
+                            {formatCurrency(
+                              action.new_cost
+                            )}
+                          </span>
+
+                          <span className="savings">
+                            Saved{" "}
+                            {formatCurrency(action.savings)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const planTrip = async () => {
@@ -146,22 +460,6 @@ function App() {
       }
 
       const data = await response.json();
-
-      /*
-       * Support both possible backend response formats:
-       *
-       * {
-       *   type: "plan",
-       *   plan: {...}
-       * }
-       *
-       * OR
-       *
-       * {
-       *   destination: "...",
-       *   itinerary: [...]
-       * }
-       */
 
       let plan = null;
 
@@ -260,125 +558,212 @@ function App() {
               className={`message-row ${message.role}`}
             >
               <div className="avatar">
-                {message.role === "assistant" ? "✈️" : "👤"}
+                {message.role === "assistant"
+                  ? "✈️"
+                  : "👤"}
               </div>
 
               <div className="message-wrapper">
 
-                <div className={`message ${message.type}`}>
-
+                <div
+                  className={`message ${message.type}`}
+                >
                   {message.type === "summary" ? (
                     <>
-                      <strong>Trip details submitted ✈️</strong>
+                      <strong>
+                        Trip details submitted ✈️
+                      </strong>
 
                       <div className="submitted-summary">
-                        <span>📍 {message.form.current_location}</span>
-                        <span>🌍 {message.form.destination}</span>
-                        <span>📅 {message.form.days} days</span>
-                        <span>👥 {message.form.travelers} travellers</span>
-                        <span>💰 ₹{message.form.budget}</span>
+                        <span>
+                          📍{" "}
+                          {message.form.current_location}
+                        </span>
+
+                        <span>
+                          🌍 {message.form.destination}
+                        </span>
+
+                        <span>
+                          📅 {message.form.days} days
+                        </span>
+
+                        <span>
+                          👥 {message.form.travelers} travellers
+                        </span>
+
+                        <span>
+                          💰 ₹
+                          {Number(
+                            message.form.budget
+                          ).toLocaleString("en-IN")}
+                        </span>
                       </div>
                     </>
                   ) : (
-                    message.content.split("\n").map((line, i) => (
-                      <div key={i}>
-                        {line || <br />}
-                      </div>
-                    ))
+                    message.content
+                      .split("\n")
+                      .map((line, i) => (
+                        <div key={i}>
+                          {line || <br />}
+                        </div>
+                      ))
                   )}
-
                 </div>
 
-                {/* Detailed plan cards */}
-                {message.type === "plan" && message.plan && (
-                  <div className="plan-details">
+                {/* PLAN */}
+                {message.type === "plan" &&
+                  message.plan && (
+                    <div className="plan-details">
 
-                    {message.plan.flights?.options?.length > 0 && (
-                      <div className="result-card">
-                        <div className="result-card-title">
-                          ✈️ Flight options
+                      {/* ITINERARY */}
+                      {renderItinerary(
+                        message.plan
+                      )}
+
+                      {/* BUDGET */}
+                      {renderBudgetSummary(
+                        message.plan
+                      )}
+
+                      {/* FLIGHTS */}
+                      {message.plan.flights
+                        ?.options?.length > 0 && (
+                        <div className="result-card">
+                          <div className="result-card-title">
+                            ✈️ Flight options
+                          </div>
+
+                          {message.plan.flights.options.map(
+                            (flight, i) => (
+                              <div
+                                className="result-item"
+                                key={i}
+                              >
+                                <strong>
+                                  {flight.airline}
+                                </strong>
+
+                                <span>
+                                  {flight.flight_number}
+                                </span>
+
+                                <span>
+                                  {flight.departure_airport}{" "}
+                                  →{" "}
+                                  {flight.arrival_airport}
+                                </span>
+
+                                <span>
+                                  {flight.departure_time}{" "}
+                                  →{" "}
+                                  {flight.arrival_time}
+                                </span>
+
+                                <span>
+                                  {formatCurrency(
+                                    flight.price
+                                  )}
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
+                      )}
 
-                        {message.plan.flights.options.map(
-                          (flight, i) => (
-                            <div
-                              className="result-item"
-                              key={i}
-                            >
-                              <strong>
-                                {flight.airline}
-                              </strong>
+                      {/* HOTELS */}
+                      {message.plan.hotels
+                        ?.options?.length > 0 && (
+                        <div className="result-card">
+                          <div className="result-card-title">
+                            🏨 Hotel options
+                          </div>
 
-                              <span>
-                                {flight.departure_airport} →{" "}
-                                {flight.arrival_airport}
-                              </span>
+                          {message.plan.hotels.options.map(
+                            (hotel, i) => (
+                              <div
+                                className="result-item"
+                                key={i}
+                              >
+                                <strong>
+                                  {hotel.name}
+                                </strong>
 
-                              <span>
-                                ₹{flight.price}
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
+                                <span>
+                                  {hotel.location}
+                                </span>
 
-                    {message.plan.hotels?.options?.length > 0 && (
-                      <div className="result-card">
-                        <div className="result-card-title">
-                          🏨 Hotel options
+                                <span>
+                                  ⭐ {hotel.rating}
+                                </span>
+
+                                <span>
+                                  {formatCurrency(
+                                    hotel.price_per_night
+                                  )}
+                                  /night
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
+                      )}
 
-                        {message.plan.hotels.options.map(
-                          (hotel, i) => (
-                            <div
-                              className="result-item"
-                              key={i}
-                            >
-                              <strong>{hotel.name}</strong>
+                      {/* WEATHER */}
+                      {message.plan.weather
+                        ?.forecast?.length > 0 && (
+                        <div className="result-card">
+                          <div className="result-card-title">
+                            🌤️ Weather
+                          </div>
 
-                              <span>
-                                {hotel.location}
-                              </span>
+                          {message.plan.weather.forecast.map(
+                            (day, i) => (
+                              <div
+                                className="result-item"
+                                key={i}
+                              >
+                                <strong>
+                                  {day.date}
+                                </strong>
 
-                              <span>
-                                ⭐ {hotel.rating}
-                              </span>
+                                <span>
+                                  {day.condition}
+                                </span>
 
-                              <span>
-                                ₹{hotel.price_per_night}/night
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
+                                <span>
+                                  {day.temperature}
+                                </span>
 
-                    {message.plan.weather?.forecast?.length > 0 && (
-                      <div className="result-card">
-                        <div className="result-card-title">
-                          🌤️ Weather
+                                <span>
+                                  {day.precipitation}
+                                </span>
+                              </div>
+                            )
+                          )}
                         </div>
+                      )}
 
-                        {message.plan.weather.forecast.map(
-                          (day, i) => (
-                            <div
-                              className="result-item"
-                              key={i}
-                            >
-                              <strong>{day.date}</strong>
-                              <span>{day.condition}</span>
-                              <span>
-                                {day.temperature}
+                      {/* SERVICE WARNINGS */}
+                      {message.plan.errors
+                        ?.length > 0 && (
+                        <div className="service-warning">
+                          <strong>
+                            ⚠️ Some travel services were unavailable
+                          </strong>
+
+                          {message.plan.errors.map(
+                            (error, i) => (
+                              <span key={i}>
+                                {error}
                               </span>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    )}
+                            )
+                          )}
+                        </div>
+                      )}
 
-                  </div>
-                )}
+                    </div>
+                  )}
 
               </div>
             </div>
@@ -397,7 +782,7 @@ function App() {
             </div>
           )}
 
-          {/* TRIP BUILDER PANEL */}
+          {/* TRIP BUILDER */}
           {!submitted && (
             <div className="message-row assistant">
 
@@ -413,14 +798,17 @@ function App() {
                     </p>
                   </div>
 
-                  <span className="builder-icon">✨</span>
+                  <span className="builder-icon">
+                    ✨
+                  </span>
                 </div>
 
                 <div className="field-grid">
 
-                  {/* CURRENT LOCATION */}
                   <div className="field-card">
-                    <label>📍 Current location</label>
+                    <label>
+                      📍 Current location
+                    </label>
 
                     <input
                       type="text"
@@ -434,9 +822,10 @@ function App() {
                     />
                   </div>
 
-                  {/* ORIGIN */}
                   <div className="field-card">
-                    <label>🛫 Starting from</label>
+                    <label>
+                      🛫 Starting from
+                    </label>
 
                     <input
                       type="text"
@@ -463,9 +852,10 @@ function App() {
                     </label>
                   </div>
 
-                  {/* DESTINATION */}
                   <div className="field-card destination-card">
-                    <label>🌍 Destination</label>
+                    <label>
+                      🌍 Destination
+                    </label>
 
                     <input
                       type="text"
@@ -480,9 +870,10 @@ function App() {
                     />
                   </div>
 
-                  {/* DAYS */}
                   <div className="field-card">
-                    <label>📅 Duration</label>
+                    <label>
+                      📅 Duration
+                    </label>
 
                     <div className="input-with-unit">
                       <input
@@ -497,13 +888,15 @@ function App() {
                           )
                         }
                       />
+
                       <span>days</span>
                     </div>
                   </div>
 
-                  {/* TRAVELLERS */}
                   <div className="field-card">
-                    <label>👥 Travellers</label>
+                    <label>
+                      👥 Travellers
+                    </label>
 
                     <div className="input-with-unit">
                       <input
@@ -518,13 +911,15 @@ function App() {
                           )
                         }
                       />
+
                       <span>people</span>
                     </div>
                   </div>
 
-                  {/* BUDGET */}
                   <div className="field-card">
-                    <label>💰 Budget</label>
+                    <label>
+                      💰 Budget
+                    </label>
 
                     <div className="input-with-unit">
                       <span>₹</span>
@@ -544,9 +939,10 @@ function App() {
                     </div>
                   </div>
 
-                  {/* DATE */}
                   <div className="field-card">
-                    <label>🗓️ Travel date</label>
+                    <label>
+                      🗓️ Travel date
+                    </label>
 
                     <input
                       type="date"
@@ -560,9 +956,10 @@ function App() {
                     />
                   </div>
 
-                  {/* PREFERENCE */}
                   <div className="field-card">
-                    <label>✨ Preference</label>
+                    <label>
+                      ✨ Preference
+                    </label>
 
                     <select
                       value={form.preference}
@@ -576,21 +973,27 @@ function App() {
                       <option value="">
                         Choose a style
                       </option>
+
                       <option value="budget-friendly">
                         💸 Budget-friendly
                       </option>
+
                       <option value="balanced">
                         ⚖️ Balanced
                       </option>
+
                       <option value="luxury">
                         💎 Luxury
                       </option>
+
                       <option value="adventure">
                         🏔️ Adventure
                       </option>
+
                       <option value="relaxed">
                         🌴 Relaxed
                       </option>
+
                       <option value="cheap flights">
                         ✈️ Cheap flights
                       </option>
@@ -630,7 +1033,6 @@ function App() {
           )}
 
         </main>
-
       </div>
     </div>
   );

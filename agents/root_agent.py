@@ -22,7 +22,6 @@ from services.plan_optimizer import PlanOptimizer
 class RootTravelAgent:
 
     def __init__(self, a2a_transport=None):
-        self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
 
@@ -54,7 +53,11 @@ class RootTravelAgent:
         else:
             self.a2a_transport = a2a_transport
 
-        self.itinerary_generator = ItineraryGenerator()
+        self.llm = LLMService()
+
+        self.itinerary_generator = ItineraryGenerator(
+            llm_service=self.llm
+        )
 
         self.budget_engine = BudgetEngine()
         self.plan_optimizer = PlanOptimizer()
