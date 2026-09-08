@@ -8,6 +8,30 @@ from models.trip import TravelPlan
 from models.flight import FlightRecommendation
 from models.hotel import HotelRecommendation
 from models.weather import WeatherRecommendation
+from models.trip import DayPlan, Activity
+
+def make_agent():
+    transport = MagicMock()
+    agent = RootTravelAgent(a2a_transport=transport)
+
+    agent.itinerary_generator.generate = MagicMock(
+        return_value=[
+            DayPlan(
+                day=1,
+                title="Day 1",
+                summary="Test itinerary",
+                morning=[
+                    Activity(
+                        name="Test Activity",
+                        description="Test activity for unit testing",
+                        estimated_cost=500.0,
+                    )
+                ],
+            )
+        ]
+    )
+
+    return agent
 
 
 # ============================================================
@@ -30,17 +54,6 @@ def failure_response(error):
         result=None,
         error=error,
     )
-
-
-def make_agent():
-
-    agent = RootTravelAgent()
-
-    # Replace the transport itself with a mock.
-    agent.a2a_transport = MagicMock()
-
-    return agent
-
 
 # ============================================================
 # FLIGHT FAILURE

@@ -22,7 +22,6 @@ from agents.itinerary_agent import ItineraryAgent
 class RootTravelAgent:
 
     def __init__(self, a2a_transport=None):
-        self.llm = LLMService()
         self.system_prompt = ROOT_AGENT_PROMPT
         self.session = ConversationSession()
 
@@ -968,7 +967,7 @@ New User Message:
             )
 
         # ========================================================
-        # FINAL TRAVEL PLAN
+        # INITIAL TRAVEL PLAN
         # ========================================================
 
         plan = TravelPlan(
@@ -985,6 +984,33 @@ New User Message:
 
             errors=errors,
         )
+
+        # ========================================================
+        # BUDGET-AWARE PLAN OPTIMIZATION
+        # ========================================================
+
+        try:
+
+            plan = self.plan_optimizer.optimize(
+                plan=plan,
+                budget=request.budget,
+                travelers=request.travelers,
+                days=request.days,
+            )
+
+        except Exception as e:
+
+            print(f"Plan optimization failed: {e}")
+
+            errors.append(
+                f"Optimization service unavailable: {e}"
+            )
+
+        # ========================================================
+        # FINAL TRAVEL PLAN
+        # ========================================================
+
+        plan.errors = errors
 
         self.session.last_plan = plan
 

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
-
+from models.budget import OptimizationAction
 
 @dataclass
 class TravelRequest:
@@ -50,6 +50,11 @@ class TravelPlan:
     flights: object | None = None
     hotels: object | None = None
     weather: object | None = None
+
+    budget_breakdown: object | None = None
+    optimization_actions: list[OptimizationAction] = field(
+        default_factory=list
+    )
 
     flight_status: str = "available"
     hotel_status: str = "available"

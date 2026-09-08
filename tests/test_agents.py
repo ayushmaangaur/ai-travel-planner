@@ -7,10 +7,16 @@ from agents.flight_agent import FlightAgent
 from agents.hotel_agent import HotelAgent
 from agents.weather_agent import WeatherAgent
 
-from models.trip import TravelRequest, TravelPlan
 from models.flight import FlightRecommendation
 from models.hotel import HotelRecommendation
 from models.weather import WeatherRecommendation
+
+from models.trip import (
+    TravelRequest,
+    TravelPlan,
+    DayPlan,
+    Activity,
+)
 
 
 # ============================================================
@@ -20,10 +26,7 @@ from models.weather import WeatherRecommendation
 @pytest.fixture(autouse=True)
 def mock_gemini(monkeypatch):
     """
-    Prevent real Gemini API calls during agent tests.
-
-    Individual tests can override this mock when they need
-    to test specific LLM behavior.
+    Prevent all real Gemini API calls during agent tests.
     """
 
     def fake_generate(self, prompt):
@@ -107,6 +110,39 @@ def mock_gemini(monkeypatch):
         fake_generate,
     )
 
+    # ---------------------------------------------------------
+    # ITINERARY GENERATOR MOCK
+    # ---------------------------------------------------------
+    # Prevent itinerary generation from calling Gemini.
+    # Itinerary behavior is tested separately.
+    # ---------------------------------------------------------
+
+    def fake_itinerary_generate(
+        self,
+        request,
+        flight_recommendation=None,
+        hotel_recommendation=None,
+        weather_recommendation=None,
+    ):
+        return [
+            DayPlan(
+                day=1,
+                title="Test Day",
+                summary="Test itinerary",
+                morning=[
+                    Activity(
+                        name="Test Activity",
+                        description="Generated for testing",
+                        estimated_cost=500.0,
+                    )
+                ],
+            )
+        ]
+
+    monkeypatch.setattr(
+        "utils.itinerary_generator.ItineraryGenerator.generate",
+        fake_itinerary_generate,
+    )
 
 # ============================================================
 # ROOT AGENT

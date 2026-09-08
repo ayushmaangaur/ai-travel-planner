@@ -1,149 +1,393 @@
-from models.trip import TravelRequest
+from models.trip import TravelRequest, DayPlan, Activity
+from services.llm_service import LLMService
 
 
 class ItineraryGenerator:
+    """
+    Generates a destination-aware itinerary using Gemini.
+
+    Gemini is responsible for:
+    - destination-specific attractions
+    - activity descriptions
+    - locations
+    - durations
+    - estimated activity costs
+    - meals
+    - travel tips
+    - weather notes
+
+    Python is responsible for:
+    - converting the response into DayPlan objects
+    - handling flight arrival timing
+    - adding arrival/check-in activity
+    - adding departure preparation
+    """
+
+    def __init__(self, llm_service=None):
+        self.llm_service = llm_service or LLMService()
 
     def generate(
         self,
         request: TravelRequest,
-        flight_result,
-        hotel_result,
-        weather_result
-    ) -> list[str]:
+        flight_recommendation=None,
+        hotel_recommendation=None,
+        weather_recommendation=None,
+    ) -> list[DayPlan]:
 
-        days = request.days or 0
+        itinerary = self.llm_service.generate_itinerary(
+            request=request,
+            flight_recommendation=flight_recommendation,
+            hotel_recommendation=hotel_recommendation,
+            weather_recommendation=weather_recommendation,
+        )
 
-        if days <= 0:
+        if not itinerary:
             return []
 
-        itinerary = []
+        self._apply_hotel_information(
+            itinerary,
+            hotel_recommendation,
+        )
 
-        # -----------------------------
-        # Extract hotel information
-        # -----------------------------
+        self._apply_weather_information(
+            itinerary,
+            weather_recommendation,
+        )
 
-        hotel_name = None
-        hotel_location = None
+        self._apply_arrival_information(
+            itinerary,
+            flight_recommendation,
+        )
 
-        if hotel_result and getattr(hotel_result, "options", None):
-            hotel = hotel_result.options[0]
-            hotel_name = getattr(hotel, "name", None)
-            hotel_location = getattr(hotel, "location", None)
+        self._apply_departure_information(
+            itinerary,
+        )
 
-        # -----------------------------
-        # Extract flight information
-        # -----------------------------
+        return itinerary
+
+    # ================================================================
+    # HOTEL
+    # ================================================================
+
+    def _apply_hotel_information(
+        self,
+        itinerary: list[DayPlan],
+        hotel_recommendation,
+    ):
+        """
+        Add the selected/first hotel as a practical Day 1 tip.
+
+        Hotel pricing is handled separately by BudgetEngine.
+        """
+
+        if not itinerary or hotel_recommendation is None:
+            return
+
+        options = getattr(
+            hotel_recommendation,
+            "options",
+            [],
+        )
+
+        if not options:
+            return
+
+        hotel = options[0]
+
+        hotel_name = getattr(
+            hotel,
+            "name",
+            None,
+        )
+
+        hotel_location = getattr(
+            hotel,
+            "location",
+            None,
+        )
+
+        if not hotel_name:
+            return
+
+        tip = f"Stay at {hotel_name}"
+
+        if hotel_location:
+            tip += f" in {hotel_location}"
+
+        tip += "."
+
+        if tip not in itinerary[0].travel_tips:
+            itinerary[0].travel_tips.insert(
+                0,
+                tip,
+            )
+
+        # If Day 1 has activities without locations, don't overwrite
+        # the LLM-generated location information.
+        #
+        # The hotel information is therefore primarily exposed through
+        # the travel tip.
+
+    # ================================================================
+    # WEATHER
+    # ================================================================
+
+    def _apply_weather_information(
+        self,
+        itinerary: list[DayPlan],
+        weather_recommendation,
+    ):
+        """
+        Add deterministic weather notes from WeatherAgent output.
+
+        This prevents weather information from being lost even if the
+        LLM does not explicitly include it in its generated JSON.
+        """
+
+        if not itinerary or weather_recommendation is None:
+            return
+
+        forecast = getattr(
+            weather_recommendation,
+            "forecast",
+            [],
+        )
+
+        if not forecast:
+            return
+
+        for index, weather_day in enumerate(forecast):
+
+            if index >= len(itinerary):
+                break
+
+            condition = getattr(
+                weather_day,
+                "condition",
+                None,
+            )
+
+            temperature = getattr(
+                weather_day,
+                "temperature",
+                None,
+            )
+
+            precipitation = getattr(
+                weather_day,
+                "precipitation",
+                None,
+            )
+
+            parts = []
+
+            if condition:
+                parts.append(str(condition))
+
+            if temperature:
+                parts.append(str(temperature))
+
+            if precipitation:
+                parts.append(
+                    f"precipitation {precipitation}"
+                )
+
+            if not parts:
+                continue
+
+            note = "Weather: " + ", ".join(parts) + "."
+
+            itinerary[index].weather_note = note
+
+    # ================================================================
+    # ARRIVAL
+    # ================================================================
+
+    def _apply_arrival_information(
+        self,
+        itinerary: list[DayPlan],
+        flight_recommendation,
+    ):
+        """
+        Add arrival/check-in to Day 1 based on the flight arrival time.
+
+        Before 14:00 -> morning
+        14:00-17:59 -> afternoon
+        18:00+ -> evening
+        """
+
+        if not itinerary:
+            return
 
         arrival_time = None
 
-        if flight_result and getattr(flight_result, "options", None):
-            flight = flight_result.options[0]
-            arrival_time = getattr(flight, "arrival_time", None)
+        if flight_recommendation is not None:
 
-        # -----------------------------
-        # Extract weather information
-        # -----------------------------
+            options = getattr(
+                flight_recommendation,
+                "options",
+                [],
+            )
 
-        forecast = []
-
-        if weather_result:
-            forecast = getattr(weather_result, "forecast", [])
-
-            if not isinstance(forecast, list):
-                forecast = []
-
-        # -----------------------------
-        # Generate itinerary
-        # -----------------------------
-
-        for day in range(1, days + 1):
-
-            weather_text = ""
-
-            if day <= len(forecast):
-                weather = forecast[day - 1]
-
-                condition = getattr(weather, "condition", None)
-                temperature = getattr(weather, "temperature", None)
-                precipitation = getattr(weather, "precipitation", None)
-
-                weather_parts = []
-
-                if condition:
-                    weather_parts.append(str(condition))
-
-                if temperature:
-                    weather_parts.append(str(temperature))
-
-                if precipitation:
-                    weather_parts.append(
-                        f"precipitation {precipitation}"
-                    )
-
-                if weather_parts:
-                    weather_text = (
-                        " Weather: "
-                        + ", ".join(weather_parts)
-                        + "."
-                    )
-
-            # -------------------------
-            # Day 1
-            # -------------------------
-
-            if day == 1:
-
-                arrival_text = ""
-
-                if arrival_time:
-                    arrival_text = (
-                        f" Arrive around {arrival_time} and "
-                    )
-
-                hotel_text = ""
-
-                if hotel_name:
-                    hotel_text = (
-                        f" Check in to {hotel_name}"
-                    )
-
-                    if hotel_location:
-                        hotel_text += f" in {hotel_location}"
-
-                    hotel_text += "."
-
-                itinerary.append(
-                    f"Day 1: {arrival_text}"
-                    f"settle in and explore the nearby area."
-                    f"{hotel_text}"
-                    f"{weather_text}"
+            if options:
+                arrival_time = getattr(
+                    options[0],
+                    "arrival_time",
+                    None,
                 )
 
-            # -------------------------
-            # Final day
-            # -------------------------
+        arrival_activity = Activity(
+            name="Arrival and check-in",
+            description=(
+                "Arrive at the destination, transfer to the hotel "
+                "and settle in."
+            ),
+            location=None,
+            duration="1-2 hours",
+            estimated_cost=0.0,
+            currency="INR",
+        )
 
-            elif day == days:
+        period = self._get_arrival_period(
+            arrival_time
+        )
 
-                itinerary.append(
-                    f"Day {day}: Enjoy a relaxed final day in "
-                    f"{request.destination}, do some shopping or "
-                    f"sightseeing, and prepare for departure."
-                    f"{weather_text}"
-                )
+        day_one = itinerary[0]
 
-            # -------------------------
-            # Normal days
-            # -------------------------
+        # Avoid duplicate arrival activities if Gemini happened
+        # to generate one itself.
+        self._remove_existing_arrival_activity(
+            day_one
+        )
 
-            else:
+        if period == "morning":
+            day_one.morning.insert(
+                0,
+                arrival_activity,
+            )
 
-                itinerary.append(
-                    f"Day {day}: Explore major attractions and "
-                    f"local experiences in {request.destination}. "
-                    f"Enjoy local food and take breaks throughout "
-                    f"the day."
-                    f"{weather_text}"
-                )
+        elif period == "afternoon":
+            day_one.afternoon.insert(
+                0,
+                arrival_activity,
+            )
 
-        return itinerary
+        else:
+            day_one.evening.insert(
+                0,
+                arrival_activity,
+            )
+
+    @staticmethod
+    def _get_arrival_period(
+        arrival_time: str | None,
+    ) -> str:
+
+        if not arrival_time:
+            return "morning"
+
+        try:
+            hour, minute = map(
+                int,
+                arrival_time.split(":")[:2],
+            )
+        except (
+            ValueError,
+            AttributeError,
+        ):
+            return "morning"
+
+        total_minutes = (
+            hour * 60
+            + minute
+        )
+
+        if total_minutes >= 18 * 60:
+            return "evening"
+
+        if total_minutes >= 14 * 60:
+            return "afternoon"
+
+        return "morning"
+
+    @staticmethod
+    def _remove_existing_arrival_activity(
+        day: DayPlan,
+    ):
+        """
+        Remove an arrival/check-in activity generated by the LLM
+        so that Python owns this deterministic behavior.
+        """
+
+        arrival_names = {
+            "arrival and check-in",
+            "arrival and hotel check-in",
+            "arrival",
+            "hotel check-in",
+        }
+
+        for activities in (
+            day.morning,
+            day.afternoon,
+            day.evening,
+        ):
+            activities[:] = [
+                activity
+                for activity in activities
+                if activity.name.lower().strip()
+                not in arrival_names
+            ]
+
+    # ================================================================
+    # DEPARTURE
+    # ================================================================
+
+    def _apply_departure_information(
+        self,
+        itinerary: list[DayPlan],
+    ):
+        """
+        Add departure preparation to the final day.
+
+        This is deterministic because it is a structural requirement
+        of the itinerary rather than a destination recommendation.
+        """
+
+        if not itinerary:
+            return
+
+        final_day = itinerary[-1]
+
+        departure_names = {
+            "departure preparation",
+            "departure",
+            "check-out and departure",
+        }
+
+        for activities in (
+            final_day.morning,
+            final_day.afternoon,
+            final_day.evening,
+        ):
+            if any(
+                activity.name.lower().strip()
+                in departure_names
+                for activity in activities
+            ):
+                return
+
+        departure_activity = Activity(
+            name="Departure Preparation",
+            description=(
+                "Check out of the hotel, collect your belongings "
+                "and prepare for departure."
+            ),
+            location=None,
+            duration="1-2 hours",
+            estimated_cost=0.0,
+            currency="INR",
+        )
+
+        final_day.evening.append(
+            departure_activity
+        )

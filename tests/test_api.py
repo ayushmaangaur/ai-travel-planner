@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from models.trip import TravelPlan, DayPlan, Activity
 
 from api.main import app
+from models.trip import TravelPlan, DayPlan, Activity
 
 
 client = TestClient(app)
@@ -211,6 +212,10 @@ def test_plan_trip_returns_nested_recommendations(monkeypatch):
     assert day["travel_tips"] == [
         "Use Tokyo's train network"
     ]
+
+    assert day["weather_note"] == (
+        "Check the forecast before heading out."
+    )
 
     # --------------------------------------------------------
     # Flight response
