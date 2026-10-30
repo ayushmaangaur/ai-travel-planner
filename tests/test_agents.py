@@ -358,3 +358,96 @@ def test_root_agent_handles_all_agent_failures(monkeypatch):
     assert result.weather is None
 
     assert len(result.errors) == 3
+
+
+import pytest
+
+
+class FakeWeatherService:
+    def __init__(self, location=None, forecast=None):
+        self.location = location or {
+            "name": "Tokyo",
+            "latitude": 35.6762,
+            "longitude": 139.6503,
+            "timezone": "Asia/Tokyo",
+        }
+        self.forecast = forecast or {
+            "daily": {
+                "time": ["2026-11-01"],
+                "weather_code": [0],
+                "temperature_2m_max": [20],
+                "temperature_2m_min": [12],
+                "precipitation_probability_max": [10],
+            }
+        }
+
+    def get_coordinates(self, destination):
+        return self.location
+
+    def get_forecast(self, **kwargs):
+        return self.forecast
+
+    @staticmethod
+    def describe_weather_code(code):
+        return "Clear sky"
+
+
+def make_weather_request():
+    return TravelRequest(destination="Tokyo", days=1)
+
+
+def test_weather_agent_rejects_missing_forecast_array():
+    service = FakeWeatherService(
+        forecast={
+            "daily": {
+                "time": ["2026-11-01"],
+                "weather_code": [0],
+                # Temperature arrays are missing.
+                "precipitation_probability_max": [10],
+            }
+        }
+    )
+    agent = WeatherAgent(weather_service=service)
+
+    with pytest.raises(ValueError, match="temperature_2m_max"):
+        agent.get_weather(make_weather_request())
+
+
+def test_weather_agent_rejects_mismatched_forecast_arrays():
+    service = FakeWeatherService(
+        forecast={
+            "daily": {
+                "time": ["2026-11-01", "2026-11-02"],
+                "weather_code": [0],
+                "temperature_2m_max": [20, 21],
+                "temperature_2m_min": [12, 13],
+                "precipitation_probability_max": [10, 20],
+            }
+        }
+    )
+    agent = WeatherAgent(weather_service=service)
+
+    with pytest.raises(ValueError, match="same number of entries"):
+        agent.get_weather(make_weather_request())
+
+
+def test_weather_agent_rejects_missing_daily_section():
+    service = FakeWeatherService(forecast={"error": "Invalid response"})
+    agent = WeatherAgent(weather_service=service)
+
+    with pytest.raises(ValueError, match="daily"):
+        agent.get_weather(make_weather_request())
+
+
+def test_weather_agent_rejects_incomplete_location():
+    service = FakeWeatherService(
+        location={
+            "name": "Tokyo",
+            # Coordinates are missing.
+            "timezone": "Asia/Tokyo",
+        }
+    )
+    agent = WeatherAgent(weather_service=service)
+
+    with pytest.raises(ValueError, match="latitude"):
+        agent.get_weather(make_weather_request())
